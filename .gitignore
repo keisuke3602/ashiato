@@ -2,6 +2,9 @@
 *.ndjson
 *.log
 data/real/
+# synthetic data is the only log-format data allowed in the repo
+!data/synthetic/
+!data/synthetic/**/*.ndjson
 
 # OS / editor
 .DS_Store

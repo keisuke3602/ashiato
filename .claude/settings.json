@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./data/real/**)",
+      "Read(./**/*.ndjson)",
+      "Read(./**/*.log)",
+      "Edit(./data/real/**)",
+      "Write(./data/real/**)"
+    ]
+  }
+}

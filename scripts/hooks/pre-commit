@@ -1,0 +1,12 @@
+#!/bin/sh
+# 実ログをコミットさせない。許可するログ形式のファイルは data/synthetic/ 配下の合成データだけ。
+# 有効化: git config core.hooksPath scripts/hooks
+
+bad=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '(^|/)data/real/|\.log$|\.ndjson$' | grep -Ev '^data/synthetic/')
+
+if [ -n "$bad" ]; then
+  echo "pre-commit: 実ログの可能性があるファイルはコミットできません:" >&2
+  echo "$bad" | sed 's/^/  /' >&2
+  echo "合成データは data/synthetic/ に置いてください。" >&2
+  exit 1
+fi
