@@ -30,6 +30,28 @@
   ClientRequestUserAgent, ClientRequestReferer。IP・Cookieは使わない。
 - 追加候補: Looker Studio連携、他のサーバーログ、コンテンツ生成、エージェント。
 
+### ボット検証の手がかり（2026-11-02 に公式ドキュメントで確認）
+出典: [Logpush http_requests フィールド](https://developers.cloudflare.com/logs/reference/log-fields/zone/http_requests/)、
+[Verified bot categories](https://developers.cloudflare.com/bots/reference/verified-bot-categories/)、
+[Verified bots](https://developers.cloudflare.com/bots/concepts/bot/verified-bots/)。
+
+- 使うフィールドは全部ある。バイト数は `EdgeResponseBytes`、パスだけなら `ClientRequestPath`。
+- 検証の手がかりは `VerifiedBotCategory`（文字列）。特別な契約条件は書かれていない。
+- `BotScore` `BotTags` `JA4` などは Bot Management 契約者のみ。小さな事業者は使えない前提で、頼らない。
+- 値: `AI Crawler`（学習用）、`AI Assistant`（利用者の操作で動く）、`AI Search`（AI検索）、
+  `Search Engine Crawler`（従来の検索）など。分類の4区分とほぼ対応する。
+- Cloudflareは Web Bot Auth か IP検証でボットを検証する。UAだけでは検証されない。
+- `AI Search` は 2026-07-01 以降、新しい検索クローラーは `Search` に分類され、互換のために残る。
+
+**未確認（実ログで確かめる）:**
+- 公式の値の一覧はWAFルール用。Logpush の出力に出る値は書かれていない。
+- 「検証に失敗したUA偽装は `VerifiedBotCategory` が空になる」は、第三者の記事だけで公式の裏付けなし。
+
+**暫定の仮定:** UAがAIボットのもので、かつ `VerifiedBotCategory` に値がある行を「検証済み」とする。
+UAがAIボットのものでも `VerifiedBotCategory` が空なら「未検証」とし、AIの需要として数えない。
+手元の実ログでAIボット行の `VerifiedBotCategory` の値の種類を確認できたら、この仮定を確定する。
+合成データの仕込み7（偽装スクレイパー）も、この仮定で作る。
+
 ## 処理の流れ
 1. 取り込み: どの形式でも、時刻・パス・ステータス・UA・リファラ・バイト数に揃える。
 2. 分類: AI学習クローラー / AI検索・回答の取得 / 利用者の質問による取得 /
@@ -143,5 +165,5 @@ UAは公開されている実際のパターン、曜日・日内のリズム、
    （denyルール、pre-commitチェック）。
 2. CLAUDE.mdは短く。実行できる確認（テスト）を用意。
 3. 方式（Managed Agents か Agent SDK か、B か A か）は、小さな検証を1つ作ってから決める。
-4. ボット検証の手がかり（CloudflareのLogpushフィールド）を確認する。
+4. ボット検証の手がかり（CloudflareのLogpushフィールド）を確認する。（済。上の節。実ログでの値の確認が残り）
 5. ダッシュボードはLooker Studio + 自作のエージェント画面を想定。決定は検証後。
