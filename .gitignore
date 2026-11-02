@@ -1,0 +1,25 @@
+# Real logs (never commit)
+*.ndjson
+*.log
+data/real/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# Dependencies / build
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+dist/
+build/
