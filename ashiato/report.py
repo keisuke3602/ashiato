@@ -26,6 +26,7 @@ pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);borde
 .acts button{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 14px;margin-right:6px;cursor:pointer}
 .acts button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
 .card.done-reject{opacity:.55}
+.trace{padding-left:1.2em}.trace li{margin-bottom:14px}.verdict{color:var(--accent);font-size:.95rem}
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}th{color:var(--sub);font-weight:400;font-size:.88rem}
 """
 
@@ -96,7 +97,19 @@ def _compare(c):
             + f'</table><details><summary>読めなかったページ別</summary><table><tr><th>ページ</th><th>直す前（1日）</th><th>直したあと（1日）</th></tr>{paths}</table></details></div>')
 
 
-def render_report(brief, drafts, compare=None):
+def _trace(steps, times):
+    if not steps:
+        return ""
+    items = []
+    for st in steps:
+        verdict = f'<div class="verdict">Claudeの判断: {escape(st["verdict"])}</div>' if st["verdict"] else ""
+        ev = _evidence({"evidence": st["evidence"]}, times) if st["evidence"] else ""
+        items.append(f'<li><b>{escape(st["title"])}</b><div>{escape(st["finding"])}</div>{verdict}{ev}</li>')
+    return ('<h2>調べた順番</h2><p class="sub">集計をもとに、問題の大きい順に確かめた記録です。回数と根拠は記録から、判断はClaudeが書いたものです。</p>'
+            f'<ol class="trace">{"".join(items)}</ol>')
+
+
+def render_report(brief, drafts, compare=None, trace=None):
     acts = sorted([d for d in drafts if d["kind"] not in ("leave_alone", "ignore")], key=lambda d: PRIORITY_ORDER[d["priority"]])
     healthy = [d for d in drafts if d["kind"] == "leave_alone"]
     ignored = [d for d in drafts if d["kind"] == "ignore"]
@@ -112,6 +125,7 @@ def render_report(brief, drafts, compare=None):
 <h1>{escape(brief['site_name'])} のAI足跡</h1>
 <div class="sub">{escape(p['from'])} 〜 {escape(p['to'])} のアクセスをもとにしています。承認するまで、サイトには何も反映されません。</div>
 {note}<div class="tiles">{tiles}</div>
+{_trace(trace, times)}
 <h2>次にやること（{len(acts)}件）</h2>
 {''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}
 {_compare(compare)}

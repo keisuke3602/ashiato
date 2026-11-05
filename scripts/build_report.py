@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ashiato import advisor, brief as brief_mod, drafts as drafts_mod, logs, report, sample  # noqa: E402
 from ashiato.aggregate import aggregate  # noqa: E402
 from ashiato.compare import compare  # noqa: E402
+from ashiato.trace import build_trace  # noqa: E402
 
 
 def build(log_path, site_dir, site_name, out_dir, response=None, after=None):
@@ -32,7 +33,7 @@ def build(log_path, site_dir, site_name, out_dir, response=None, after=None):
     out = Path(out_dir)
     drafts_mod.save(d, brief_mod.known_ids(b), out)
     (out / "brief.json").write_text(json.dumps(b, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (out / "report.html").write_text(report.render_report(b, d, cmp), encoding="utf-8")
+    (out / "report.html").write_text(report.render_report(b, d, cmp, build_trace(b, d)), encoding="utf-8")
     return b, d
 
 
