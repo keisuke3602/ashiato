@@ -1,4 +1,5 @@
 """日本語のレポート画面（HTML 1枚）。承認・修正・却下はブラウザ内の印だけで、サイトには何も書き込まない。"""
+from datetime import datetime, timedelta
 from html import escape
 
 KIND_LABEL = {"new_page": "ページを作る", "rewrite_page": "書き直す", "redirect": "転送を足す",
@@ -45,8 +46,21 @@ def _tiles(brief):
             ("AIの回答から来たお客様", visitors, "")]
 
 
-def _card(i, d, actions=True):
-    ev = " ".join(escape(str(x)) for x in d["evidence"])
+def _when(ts):
+    """UTC の時刻文字列を、日本時間の「9月12日 14:03」に直す。"""
+    t = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=9)
+    return f"{t.month}月{t.day}日 {t:%H:%M}"
+
+
+def _evidence(d, times):
+    ids = d["evidence"]
+    whens = list(dict.fromkeys(_when(times[i]) for i in ids if i in times))
+    head = "根拠: " + "、".join(whens[:3]) + (f" ほか{len(ids)}件の記録" if len(whens) > 3 or len(ids) > 3 else "") if whens else "根拠あり"
+    return (f'<div class="ev">{escape(head)}<details><summary>記録番号</summary>'
+            f'{escape(" ".join(map(str, ids)))}</details></div>')
+
+
+def _card(i, d, times, actions=True):
     body = f"<pre>{escape(d['body'])}</pre>" if d["body"] else ""
     btn = ('<div class="acts"><button data-v="approve" aria-pressed="false">承認</button>'
            '<button data-v="edit" aria-pressed="false">修正する</button>'
@@ -54,12 +68,24 @@ def _card(i, d, actions=True):
     return (f'<div class="card" data-id="{i}"><h3>{escape(d["title"])}</h3>'
             f'<span class="tag {d["priority"]}">{PRIORITY_LABEL[d["priority"]]}</span>'
             f'<span class="tag">{KIND_LABEL[d["kind"]]}</span><p>{escape(d["why"])}</p>{body}'
-            f'<p class="ev">根拠の記録: {ev}</p>{btn}</div>')
+            f'{_evidence(d, times)}{btn}</div>')
+
+
+def _healthy(healthy):
+    if not healthy:
+        return ""
+    items = "".join(f"<li>{escape(d['target'])} <span class=\"ev\">記録番号: {escape(' '.join(map(str, d['evidence'])))}</span></li>"
+                    for d in healthy)
+    return (f'<div class="card"><h3>問題なく読まれているページ（{len(healthy)}件）</h3>'
+            f'<p>AIが読みに来て、すべて読めています。このままで大丈夫です。</p>'
+            f'<details><summary>ページの一覧</summary><ul>{items}</ul></details></div>')
 
 
 def render_report(brief, drafts):
     acts = sorted([d for d in drafts if d["kind"] not in ("leave_alone", "ignore")], key=lambda d: PRIORITY_ORDER[d["priority"]])
-    rest = [d for d in drafts if d["kind"] in ("leave_alone", "ignore")]
+    healthy = [d for d in drafts if d["kind"] == "leave_alone"]
+    ignored = [d for d in drafts if d["kind"] == "ignore"]
+    times = brief.get("evidence_times", {})
     sample = any(d.get("source") == "sample" for d in drafts)
     p = brief["period"] or {"from": "", "to": ""}
     tiles = "".join(f'<div class="tile {c}"><b>{n:,}</b><span>{escape(t)}</span></div>' for t, n, c in _tiles(brief))
@@ -70,7 +96,8 @@ def render_report(brief, drafts):
 <div class="sub">{escape(p['from'])} 〜 {escape(p['to'])} のアクセスをもとにしています。承認するまで、サイトには何も反映されません。</div>
 {note}<div class="tiles">{tiles}</div>
 <h2>次にやること（{len(acts)}件）</h2>
-{''.join(_card(i, d) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}
-<h2>手を付けなくてよいこと（{len(rest)}件）</h2>
-{''.join(_card(100 + i, d, actions=False) for i, d in enumerate(rest))}
+{''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}
+<h2>手を付けなくてよいこと</h2>
+{_healthy(healthy)}
+{''.join(_card(100 + i, d, times, actions=False) for i, d in enumerate(ignored))}
 </main><script>{JS}</script></body></html>"""
