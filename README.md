@@ -30,9 +30,39 @@ Built with Claude: Japan 2026 への参加作品です。開発は 2026-11-02 �
 - 実際のログはこのリポジトリに入れません。デモは合成データだけを使います。
 - 下書きは提案です。公開するのは人です。
 
-## 状況
+## 使ってみる
 
-開発中です。このREADMEは、開発の進み具合に合わせて更新します。
+標準ライブラリだけで動きます(Python 3)。
+
+```
+python3 scripts/gen_synthetic.py            # 合成データA(旅館)を data/synthetic/ryokan/ に作る
+python3 scripts/gen_synthetic_b.py          # 合成データB(読書ノートのサービス)を data/synthetic/readnote/ に作る
+python3 scripts/serve.py data/synthetic/ryokan/site/before 雪待荘 \
+  --response examples/ryokan/claude_response.json \
+  --after data/synthetic/ryokan/after.ndjson
+```
+
+ブラウザで `http://127.0.0.1:8765/` を開き、`data/synthetic/ryokan/before.ndjson` を落とします。
+入れたログはこのパソコンの中で解析するだけで、ディスクにも外にも書き出しません。
+テストは `python3 -m unittest discover -s tests` です。
+
+## しくみ
+
+1. コードがログを読み、AIの種類を分け(UAの表)、ページごとに数えます(`ashiato/`)。
+2. 数えた結果と、サイトの情報から「ブリーフ」を作ります。Claudeに渡すのはこれだけで、生のログは渡しません。
+3. Claudeが原因を判断し、下書きを書きます(指示は `prompts/advisor_ja.md`)。
+4. 下書きはコードが検証します。根拠の行が無い、ブリーフに無い行を指す、事実と合わない種類(転送先が無いのに「転送」など)の下書きは、保存を拒否します。
+5. 人が、承認・修正・却下します。サイトには何も書き込みません。
+
+## 今の状況
+
+- 動くもの: ログの読み込み(Cloudflare Logpush、nginx/Apache)、AIの種類の判別、ページ別の集計、ブリーフの作成、
+  下書きの検証、日本語の画面(全体、ページごとの様子、調べた順番、次にやること、手を付けなくてよいこと、前後比較)。
+- `examples/` の下書きは、Claude Code の中の別のClaudeに、ブリーフと指示文だけを渡して書かせた実際の出力です。
+  Claudeを API やエージェントの仕組みから呼び出す部分は、まだ組み込んでいません。
+- 画面の「見本」の下書きは、Claudeではなく決まった規則で作ったものです(Claudeの返答を渡さないと出ます)。
+- 実サイトでの確認は、集計の傾向を見たのみです。このリポジトリには、実際のログも、実際の集計値も入っていません。
+- 設計とデモの台本は `docs/` にあります。
 
 ## 来歴について
 
