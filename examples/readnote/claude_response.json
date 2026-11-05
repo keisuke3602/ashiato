@@ -1,0 +1,119 @@
+[
+  {
+    "kind": "new_page",
+    "target": "/help/export-kindle",
+    "title": "存在しないページ「/help/export-kindle」をAIが何度も探しています",
+    "why": "このページはサイトに無いのに、AIが4種類のボットから合計105回取りに来て、すべて「見つからない」になっています。人間の訪問は0回なので、AIの回答の中でこのページが案内されている可能性があります。転送先に使える既存ページの候補は見つかっていないため、新しくページを作るのが現実的です。",
+    "body": "# Kindleのハイライトを書き出す方法\n\n1. Kindleのハイライトを、かきわけに取り込む画面を開きます。\n2. 取り込みたい本を選び、「書き出し」を押します。\n3. 書き出したハイライトを、かきわけのノートに保存します。\n\n詳しい活かし方は「Kindleのハイライトを活かす」(/blog/kindle-highlights-tips) もご覧ください。\n\n※実際の手順は、担当の方が画面を確認して書き直してください。",
+    "priority": "high",
+    "evidence": ["before.ndjson:8", "before.ndjson:177", "before.ndjson:180", "before.ndjson:183", "before.ndjson:352"]
+  },
+  {
+    "kind": "fix_config",
+    "target": "/pricing",
+    "title": "料金ページでAIの取得が「回数が多すぎる」と断られています",
+    "why": "/pricing は、3種類のAIボット（ClaudeBot、GPTBot、OAI-SearchBot）からの取得のうち69回が「アクセスが多すぎる」として断られています。同じ時期、他のページでは断られておらず、このページだけ保護が強すぎる可能性があります。料金はAIが回答で紹介しやすい情報なので、設定を見直す価値があります。",
+    "body": "サーバーやCDNの「アクセス回数の制限」の設定で、/pricing に対する上限を他のページと同じ水準に揃えるか、ClaudeBot・GPTBot・OAI-SearchBot を制限の対象から外してください。",
+    "priority": "high",
+    "evidence": ["before.ndjson:185", "before.ndjson:507", "before.ndjson:614", "before.ndjson:616", "before.ndjson:618"]
+  },
+  {
+    "kind": "ignore",
+    "target": "",
+    "title": "ChatGPT-User を名乗るアクセスの一部は、本物と確認できません",
+    "why": "ChatGPT-User を名乗るアクセス111回のうち、本物と確認できたのは60回で、51回は確認できていません。確認できないものはAIの関心として数えず、判断の材料にしません。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:215", "before.ndjson:454", "before.ndjson:485", "before.ndjson:662", "before.ndjson:774"]
+  },
+  {
+    "kind": "ignore",
+    "target": "",
+    "title": "PerplexityBot を名乗るアクセスの大半は、本物と確認できません",
+    "why": "PerplexityBot を名乗るアクセス119回のうち、本物と確認できたのは16回だけで、103回は確認できていません。このため、Perplexityからの関心が高いとは判断せず、対応も不要です。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:140", "before.ndjson:141", "before.ndjson:142", "before.ndjson:143", "before.ndjson:340"]
+  },
+  {
+    "kind": "ignore",
+    "target": "",
+    "title": "サイトを荒らす目的のアクセス234回は無視してよいです",
+    "why": "/.env（53回）、/wp-login.php（41回）、/wp-admin/（38回）、/xmlrpc.php（38回）、/phpmyadmin/（34回）、/.git/config（30回）など、このサイトに無い管理画面や設定ファイルを探すアクセスが合計234回ありました。AIとは関係なく、読書ノートのサービスでは対応するページも不要です。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:11", "before.ndjson:153", "before.ndjson:22", "before.ndjson:111", "before.ndjson:96", "before.ndjson:288", "before.ndjson:125", "before.ndjson:503"]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/blog/reading-notes-habit",
+    "title": "「読書ノートを続けるコツ」はAIによく読まれていて、そのままで大丈夫です",
+    "why": "AIによる取得が137回あり、すべて正常に読まれています。直す必要はありません。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:10", "before.ndjson:89", "before.ndjson:321", "before.ndjson:323", "before.ndjson:360"]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/blog/kindle-highlights-tips",
+    "title": "「Kindleのハイライトを活かす」はAIの回答からの訪問もあり、そのままで大丈夫です",
+    "why": "AIによる取得が118回あり、すべて正常に読まれています。AIの回答を見て訪れた人も26人いました。手を入れる必要はありません。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:5", "before.ndjson:86", "before.ndjson:87", "before.ndjson:149", "before.ndjson:184", "before.ndjson:61", "before.ndjson:748", "before.ndjson:902"]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/blog/ai-and-reading",
+    "title": "「AI時代の読書」は問題なく読まれています",
+    "why": "AIによる取得が81回あり、すべて正常に読まれています。直す必要はありません。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:85", "before.ndjson:175", "before.ndjson:182", "before.ndjson:320", "before.ndjson:322"]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/features",
+    "title": "「機能」ページはAIの回答からの訪問もあり、そのままで大丈夫です",
+    "why": "AIによる取得が78回あり、すべて正常に読まれています。AIの回答を見て訪れた人も33人いました。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:361", "before.ndjson:506", "before.ndjson:516", "before.ndjson:534", "before.ndjson:535", "before.ndjson:214", "before.ndjson:432", "before.ndjson:607"]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/",
+    "title": "トップページは問題なく読まれています",
+    "why": "AIによる取得が48回あり、すべて正常に読まれています。手を入れる必要はありません。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:7", "before.ndjson:178", "before.ndjson:179", "before.ndjson:353", "before.ndjson:356"]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/extension",
+    "title": "「ブラウザ拡張」ページはAIの回答からの訪問もあり、そのままで大丈夫です",
+    "why": "AIによる取得が38回あり、すべて正常に読まれています。AIの回答を見て訪れた人も24人いました。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:176", "before.ndjson:181", "before.ndjson:613", "before.ndjson:909", "before.ndjson:1232", "before.ndjson:664", "before.ndjson:1674", "before.ndjson:1811"]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/blog/spaced-review",
+    "title": "「間隔をあけた復習」は問題なく読まれています",
+    "why": "AIによる取得が40回あり、すべて正常に読まれています。直す必要はありません。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:6", "before.ndjson:362", "before.ndjson:509", "before.ndjson:1000", "before.ndjson:1236"]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/help/getting-started",
+    "title": "「はじめてのかきわけ」は問題なく読まれています",
+    "why": "AIによる取得が39回あり、すべて正常に読まれています。直す必要はありません。",
+    "body": "",
+    "priority": "low",
+    "evidence": ["before.ndjson:88", "before.ndjson:1245", "before.ndjson:1246", "before.ndjson:1283", "before.ndjson:1645"]
+  }
+]

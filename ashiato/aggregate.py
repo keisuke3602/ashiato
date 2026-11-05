@@ -8,6 +8,7 @@
 - scanner（脆弱性を探る自動アクセス）はページに入れず ignored に回す。
 """
 from collections import Counter, defaultdict
+from datetime import datetime, timedelta
 from urllib.parse import parse_qs
 
 from .classify import AI_KINDS, classify_ua, is_verified
@@ -39,6 +40,14 @@ def is_ai_answer_visitor(row):
 
 def _bump(table, key, status):
     table[key][str(status)] += 1
+
+
+def _period(rows):
+    """期間は日本時間の日付で数える（時刻は UTC で持っている）。"""
+    if not rows:
+        return None
+    jst = [datetime.strptime(r["ts"], "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=9) for r in rows]
+    return {"from": min(jst).date().isoformat(), "to": max(jst).date().isoformat()}
 
 
 def aggregate(rows):
@@ -103,7 +112,7 @@ def aggregate(rows):
     return {
         "total_rows": len(rows),
         "evidence_times": times,
-        "period": {"from": min(r["ts"] for r in rows)[:10], "to": max(r["ts"] for r in rows)[:10]} if rows else None,
+        "period": _period(rows),
         "pages": {path: {"human": p["human"], "search": p["search"], "ai_answer_visitors": p["ai_answer_visitors"],
                          "ai": dict(p["ai"]), "ai_by_bot": {k: dict(v) for k, v in p["ai_by_bot"].items()},
                          "evidence": dict(p["evidence"])} for path, p in sorted(pages.items())},
