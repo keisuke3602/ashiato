@@ -86,7 +86,7 @@ def _signals(agg, site):
 def build_brief(agg, site, site_name):
     return {"site_name": site_name, "period": agg["period"], "total_requests": agg["total_rows"],
             "site_pages": site["pages"], "robots_txt": site["robots_txt"],
-            "pages": agg["pages"], "bots": agg["bots"], "signals": _signals(agg, site)}
+            "pages": agg["pages"], "bots": agg["bots"], "evidence_times": agg["evidence_times"], "signals": _signals(agg, site)}
 
 
 def known_ids(brief):

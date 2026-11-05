@@ -41,13 +41,15 @@ def _bump(table, key, status):
     table[key][str(status)] += 1
 
 
-def _keep(store, key, row_id, limit=EVIDENCE_LIMIT):
-    """根拠の行IDを、キーごとに最初の limit 件だけ残す。"""
-    if len(store[key]) < limit:
-        store[key].append(row_id)
-
-
 def aggregate(rows):
+    times = {}  # 根拠に使った行ID -> 時刻（画面で日時に直すため）
+
+    def keep(store, key, r, limit=EVIDENCE_LIMIT):
+        """根拠の行IDを、キーごとに最初の limit 件だけ残す。"""
+        if len(store[key]) < limit:
+            store[key].append(r["id"])
+            times[r["id"]] = r["ts"]
+
     pages = defaultdict(lambda: {"human": 0, "search": 0, "ai_answer_visitors": 0,
                                  "ai": Counter(), "ai_by_bot": defaultdict(Counter), "evidence": defaultdict(list)})
     bots = {}
@@ -62,9 +64,9 @@ def aggregate(rows):
                                        "unknown_verification": 0, "paths": Counter(), "statuses": Counter(),
                                        "evidence": defaultdict(list)})
             if verified is False:
-                _keep(b["evidence"], "unverified", r["id"])
+                keep(b["evidence"], "unverified", r)
             if r["path"] == "/robots.txt":
-                _keep(b["evidence"], "robots", r["id"])
+                keep(b["evidence"], "robots", r)
             b["requests"] += 1
             b["verified" if verified else "unverified" if verified is False else "unknown_verification"] += 1
             b["paths"][r["path"]] += 1
@@ -72,7 +74,7 @@ def aggregate(rows):
         if kind == "scanner":
             ignored["scanner_requests"] += 1
             ignored["scanner_paths"][r["path"]] += 1
-            _keep(ignored["scanner_evidence"], r["path"], r["id"], 2)
+            keep(ignored["scanner_evidence"], r["path"], r, 2)
             continue
         if ptype != "page":
             ignored["non_page_requests"][ptype] += 1
@@ -83,18 +85,16 @@ def aggregate(rows):
                 continue  # 未検証のAI名乗りは需要に数えない（bots に出る）
             p["ai"][str(r["status"])] += 1
             _bump(p["ai_by_bot"], name, r["status"])
-            ev = p["evidence"][str(r["status"])]
-            if len(ev) < EVIDENCE_LIMIT:
-                ev.append(r["id"])
+            keep(p["evidence"], str(r["status"]), r)
         elif kind == "search":
             p["search"] += 1
         elif kind == "human":
             if is_ai_answer_visitor(r):
                 p["ai_answer_visitors"] += 1
-                _keep(p["evidence"], "ai_answer_visitor", r["id"], 3)
+                keep(p["evidence"], "ai_answer_visitor", r, 3)
             else:
                 p["human"] += 1
-                _keep(p["evidence"], "human", r["id"], 3)
+                keep(p["evidence"], "human", r, 3)
     for b in bots.values():
         b["only_robots_txt"] = set(b["paths"]) <= {"/robots.txt"}
         b["paths"] = dict(b["paths"])
@@ -102,6 +102,7 @@ def aggregate(rows):
         b["evidence"] = dict(b["evidence"])
     return {
         "total_rows": len(rows),
+        "evidence_times": times,
         "period": {"from": min(r["ts"] for r in rows)[:10], "to": max(r["ts"] for r in rows)[:10]} if rows else None,
         "pages": {path: {"human": p["human"], "search": p["search"], "ai_answer_visitors": p["ai_answer_visitors"],
                          "ai": dict(p["ai"]), "ai_by_bot": {k: dict(v) for k, v in p["ai_by_bot"].items()},
