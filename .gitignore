@@ -26,3 +26,6 @@ __pycache__/
 .venv/
 dist/
 build/
+
+# Generated reports (rebuild with scripts/build_report.py)
+out/
