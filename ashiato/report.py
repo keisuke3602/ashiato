@@ -26,6 +26,7 @@ pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);borde
 .acts button{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 14px;margin-right:6px;cursor:pointer}
 .acts button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
 .card.done-reject{opacity:.55}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}th{color:var(--sub);font-weight:400;font-size:.88rem}
 """
 
 JS = """
@@ -74,14 +75,28 @@ def _card(i, d, times, actions=True):
 def _healthy(healthy):
     if not healthy:
         return ""
-    items = "".join(f"<li>{escape(d['target'])} <span class=\"ev\">記録番号: {escape(' '.join(map(str, d['evidence'])))}</span></li>"
+    items = "".join(f"<li>{escape(d['target'] or d['title'])} <span class=\"ev\">記録番号: {escape(' '.join(map(str, d['evidence'])))}</span></li>"
                     for d in healthy)
-    return (f'<div class="card"><h3>問題なく読まれているページ（{len(healthy)}件）</h3>'
+    count = f"（{len(healthy)}件）" if all(d["target"] for d in healthy) else ""
+    return (f'<div class="card"><h3>問題なく読まれているページ{count}</h3>'
             f'<p>AIが読みに来て、すべて読めています。このままで大丈夫です。</p>'
             f'<details><summary>ページの一覧</summary><ul>{items}</ul></details></div>')
 
 
-def render_report(brief, drafts):
+def _compare(c):
+    if not c:
+        return ""
+    def row(label, d):
+        return f'<tr><td>{escape(label)}</td><td>{d["before"]:g}</td><td>{d["after"]:g}</td></tr>'
+    paths = "".join(f'<tr><td>{escape(r["path"])}</td><td>{r["before_failed_per_day"]:g}</td><td>{r["after_failed_per_day"]:g}</td></tr>' for r in c["paths"])
+    return (f'<h2>直したあとの変化</h2><div class="card"><p class="sub">直す前（{c["days"]["before"]}日分）と、直したあと（{c["days"]["after"]}日分）を、1日あたりで比べています。</p>'
+            f'<table><tr><th></th><th>直す前</th><th>直したあと</th></tr>'
+            + row('AIが読めた回数（1日）', c['ok_per_day']) + row('AIが読めなかった回数（1日）', c['failed_per_day'])
+            + row('AIの回答から来たお客様（1日）', c['ai_answer_visitors_per_day'])
+            + f'</table><details><summary>読めなかったページ別</summary><table><tr><th>ページ</th><th>直す前（1日）</th><th>直したあと（1日）</th></tr>{paths}</table></details></div>')
+
+
+def render_report(brief, drafts, compare=None):
     acts = sorted([d for d in drafts if d["kind"] not in ("leave_alone", "ignore")], key=lambda d: PRIORITY_ORDER[d["priority"]])
     healthy = [d for d in drafts if d["kind"] == "leave_alone"]
     ignored = [d for d in drafts if d["kind"] == "ignore"]
@@ -89,7 +104,9 @@ def render_report(brief, drafts):
     sample = any(d.get("source") == "sample" for d in drafts)
     p = brief["period"] or {"from": "", "to": ""}
     tiles = "".join(f'<div class="tile {c}"><b>{n:,}</b><span>{escape(t)}</span></div>' for t, n, c in _tiles(brief))
-    note = ('<p class="sub">※ これは見本の下書きです。実際の助言はClaudeが書きます。</p>' if sample else "")
+    note = ('<p class="sub">※ これは見本の下書きです。実際の助言はClaudeが書きます。</p>' if sample else
+            '<p class="sub">下書きはClaudeが書きました。公開する前に、必ず内容を確認してください。</p>'
+            if any(d.get("source") == "claude" for d in drafts) else "")
     return f"""<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>足跡 {escape(brief['site_name'])}</title><style>{CSS}</style></head><body><main>
 <h1>{escape(brief['site_name'])} のAI足跡</h1>
@@ -97,6 +114,7 @@ def render_report(brief, drafts):
 {note}<div class="tiles">{tiles}</div>
 <h2>次にやること（{len(acts)}件）</h2>
 {''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}
+{_compare(compare)}
 <h2>手を付けなくてよいこと</h2>
 {_healthy(healthy)}
 {''.join(_card(100 + i, d, times, actions=False) for i, d in enumerate(ignored))}
