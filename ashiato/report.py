@@ -2,6 +2,8 @@
 from datetime import datetime, timedelta
 from html import escape
 
+from .pages_table import LABELS, page_rows
+
 KIND_LABEL = {"new_page": "ページを作る", "rewrite_page": "書き直す", "redirect": "転送を足す",
               "fix_config": "設定を見直す", "leave_alone": "手を付けない", "ignore": "無視してよい"}
 PRIORITY_LABEL = {"high": "先にやる", "mid": "次にやる", "low": "余裕があれば"}
@@ -26,6 +28,7 @@ pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);borde
 .acts button{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 14px;margin-right:6px;cursor:pointer}
 .acts button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
 .card.done-reject{opacity:.55}
+.st{font-size:.8rem;border-radius:99px;padding:1px 10px;border:1px solid var(--line)}.st0,.st1{color:var(--warn);border-color:var(--warn)}.st3{color:var(--ok);border-color:var(--ok)}
 .trace{padding-left:1.2em}.trace li{margin-bottom:14px}.verdict{color:var(--accent);font-size:.95rem}
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}th{color:var(--sub);font-weight:400;font-size:.88rem}
 """
@@ -97,6 +100,14 @@ def _compare(c):
             + f'</table><details><summary>読めなかったページ別</summary><table><tr><th>ページ</th><th>直す前（1日）</th><th>直したあと（1日）</th></tr>{paths}</table></details></div>')
 
 
+def _pages(rows):
+    body = "".join(f'<tr><td>{escape(r["path"])}</td><td><span class="st st{LABELS.index(r["status"])}">{escape(r["status"])}</span></td>'
+                   f'<td>{r["ai_ok"]:,}</td><td>{r["ai_failed"]:,}</td><td>{r["ai_answer_visitors"]:,}</td><td>{r["human"]:,}</td></tr>'
+                   for r in rows)
+    return ('<h2>ページごとの様子</h2><div class="card" style="overflow-x:auto"><table><tr><th>ページ</th><th>AIから見て</th>'
+            f'<th>読めた回数</th><th>読めなかった回数</th><th>AIの回答から来たお客様</th><th>お客様の訪問</th></tr>{body}</table></div>')
+
+
 def _trace(steps, times):
     if not steps:
         return ""
@@ -125,6 +136,7 @@ def render_report(brief, drafts, compare=None, trace=None):
 <h1>{escape(brief['site_name'])} のAI足跡</h1>
 <div class="sub">{escape(p['from'])} 〜 {escape(p['to'])} のアクセスをもとにしています。承認するまで、サイトには何も反映されません。</div>
 {note}<div class="tiles">{tiles}</div>
+{_pages(page_rows(brief)) if brief.get("site_pages") else ""}
 {_trace(trace, times)}
 <h2>次にやること（{len(acts)}件）</h2>
 {''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}
