@@ -38,16 +38,19 @@ Built with Claude: Japan 2026 への参加作品です。開発は 2026-11-02 �
 python3 scripts/gen_synthetic.py            # 合成データA(旅館)を data/synthetic/ryokan/ に作る
 python3 scripts/gen_synthetic_b.py          # 合成データB(読書ノートのサービス)を data/synthetic/readnote/ に作る
 python3 scripts/serve.py data/synthetic/ryokan/site/before 雪待荘 \
-  --response examples/ryokan/claude_response.json \
-  --after data/synthetic/ryokan/after.ndjson
+  --response examples/ryokan/claude_response.json
 pip install anthropic                       # API で下書きを取るときだけ必要（API キーは環境変数 ANTHROPIC_API_KEY）
 python3 scripts/run_advisor.py data/synthetic/ryokan/before.ndjson data/synthetic/ryokan/site/before 雪待荘 out/ryokan_response.json --run
 ```
+
+入れたログから、その場で Claude に下書きを作らせるには、`serve.py` に `--response` の代わりに `--live` を付けます
+（環境変数 ANTHROPIC_API_KEY が要ります。ログを入れるたびに API を呼ぶので、料金がかかります）。
 
 上の run_advisor.py は、`--run` を付けると API を呼びます（料金がかかります）。付けなければ呼びません。
 `serve.py` には、`examples/` の保存済みの返答を `--response` に渡しても動かせます（API キーは要りません）。
 
 ブラウザで `http://127.0.0.1:8765/` を開き、`data/synthetic/ryokan/before.ndjson` を落とします。
+レポートの下に「直したあとのアクセス記録」の欄が出るので、`data/synthetic/ryokan/after.ndjson` を落とすと、前後の比較が出ます。
 入れたログはこのパソコンの中で解析するだけで、ディスクにも外にも書き出しません。
 テストは `python3 -m unittest discover -s tests` です。
 

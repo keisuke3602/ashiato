@@ -26,6 +26,8 @@ h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.15rem;margin:36px 0 12px}
 pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:inherit;font-size:.92rem}
 .ev{color:var(--sub);font-size:.8rem;word-break:break-all}
 .acts button{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 14px;margin-right:6px;cursor:pointer}
+.exp textarea{width:100%;box-sizing:border-box;min-height:140px;font:inherit;font-size:.88rem;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);padding:10px}
+.exp button{font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:6px 16px;cursor:pointer;margin-top:8px}
 .acts button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
 .card.done-reject{opacity:.55}
 .st{font-size:.8rem;border-radius:99px;padding:1px 10px;border:1px solid var(--line)}.st0,.st1{color:var(--warn);border-color:var(--warn)}.st3{color:var(--ok);border-color:var(--ok)}
@@ -33,10 +35,15 @@ pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);borde
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}th{color:var(--sub);font-weight:400;font-size:.88rem}
 """
 
-JS = """
+JS = r"""
+function refresh(){var box=document.getElementById('exp-text'),n=document.getElementById('exp-n');if(!box)return;var out=[],c=0;
+  document.querySelectorAll('.card[data-id]').forEach(function(card){var a=card.querySelector('button[data-v=approve]');
+    if(a&&a.getAttribute('aria-pressed')==='true'){c++;var pre=card.querySelector('pre');out.push('■ '+card.querySelector('h3').textContent+'\n'+card.querySelector('p').textContent+(pre?'\n\n'+pre.textContent:''))}});
+  box.value=out.join('\n\n----------\n\n');n.textContent=c}
+var cp=document.getElementById('exp-copy');if(cp)cp.addEventListener('click',function(){var box=document.getElementById('exp-text');box.select();try{navigator.clipboard.writeText(box.value)}catch(e){document.execCommand('copy')}cp.textContent='コピーしました'});
 document.querySelectorAll('.card[data-id]').forEach(function(card){
   var key='ashiato:'+card.dataset.id, buttons=card.querySelectorAll('button');
-  function mark(v){buttons.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.v===v)});card.classList.toggle('done-reject',v==='reject')}
+  function mark(v){buttons.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.v===v)});card.classList.toggle('done-reject',v==='reject');refresh()}
   try{mark(localStorage.getItem(key)||'')}catch(e){}
   buttons.forEach(function(b){b.addEventListener('click',function(){mark(b.dataset.v);try{localStorage.setItem(key,b.dataset.v)}catch(e){}})});
 });
@@ -140,6 +147,9 @@ def render_report(brief, drafts, compare=None, trace=None):
 {_trace(trace, times)}
 <h2>次にやること（{len(acts)}件）</h2>
 {''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}
+<div class="exp"><h2>承認した下書き（<span id="exp-n">0</span>件）</h2>
+<p class="sub">承認したものだけが、ここに集まります。コピーして、ご自分でサイトに反映してください。足跡は、サイトには何も書き込みません。</p>
+<textarea id="exp-text" readonly placeholder="「承認」を押すと、ここに下書きが入ります"></textarea><br><button id="exp-copy">まとめてコピー</button></div>
 {_compare(compare)}
 <h2>手を付けなくてよいこと</h2>
 {_healthy(healthy)}
