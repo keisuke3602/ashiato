@@ -26,10 +26,11 @@
 
 ## 録画の準備（11/7）
 1. 準備: `set -a; source .keys/.env; set +a`（キーを環境変数に入れる。画面に出さない）。
-2. 本番で使う下書きは、Claude API で実際に取った出力（`out/ryokan_response.json`）。
+2. 本番で使う下書きは、Managed Agents 経由で実際に取った出力（`examples/ryokan/claude_response.json`、13件、反映のしかた付き）。
    生成に1〜2分かかるので、録画では `--live` ではなく、保存した返答を使う:
-   `python3 scripts/serve.py data/synthetic/ryokan/site/before 雪待荘 --response out/ryokan_response.json`
+   `python3 scripts/serve.py data/synthetic/ryokan/site/before 雪待荘 --response examples/ryokan/claude_response.json`
    （この返答は、このデータから実際に Claude が書いたもの。概要文に「録画は、保存した実際の出力を使った」と書く）。
+   画面の件数・内訳は、この返答で出たものを読む（承認する下書きは、/access、/plans/winter の転送、robots.txt など）。
 3. `--live` の実行そのものを見せたいときは、待ち時間（1〜2分）を編集で詰める。詰めたことを概要文に書く。
 4. 前後の比較は、レポートの下の欄に `data/synthetic/ryokan/after.ndjson` を入れる。
 5. データBは、`python3 scripts/build_report.py data/synthetic/readnote/before.ndjson data/synthetic/readnote/site かきわけ out/readnote --response examples/readnote/claude_response.json` で作った `out/readnote/report.html` を開く。
@@ -42,8 +43,10 @@
 - 「承認」はブラウザの中の印だけで、サイトには何も書き込まない。そう言う。
 
 ## 概要文・デモで正直に言うこと
-- Claude の呼び出しは、Managed Agents ではなく、Claude API（`claude-opus-5-5`）の呼び出し。
-  Managed Agents の設定ファイル（`agents/`、`environments/`）は、まだ実行していない。実行したら、その結果だけを書く。
+- Claude（`claude-opus-5-5`）の呼び出しは2通り。画面の `--live` は Claude API、保存した返答（`examples/ryokan/`）は
+  Managed Agents（Agent・Environment・Session、ツールは全部オフ、上限額つき）で、合成データのブリーフから1回取ったもの。
+  Managed Agents は合成データでしか実行していない。
+- 目2（サイトの公開ページの診断）、目3（AIの答え）は、実際の API での確認がまだ。確認できた分だけを書く。
 - デモのサイトとログは、すべて架空の合成データ。実ログは使っていない。
 - 前後の比較は、直す前と直したあとのログを、別々に入れたときに出る。
 
