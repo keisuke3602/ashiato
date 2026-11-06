@@ -40,6 +40,52 @@ class AppTest(unittest.TestCase):
         for needle in ("次にやること", "調べた順番", "ページごとの様子", "直したあとの変化", "Claudeが書きました"):
             self.assertIn(needle, html)
 
+    def test_before_only_has_no_comparison_until_after_is_added(self):
+        cfg = app.Config(self.root / "site" / "before", "雪待荘", ROOT / "examples" / "ryokan" / "claude_response.json")
+        with self.assertRaises(LookupError):  # 先に before を入れていない
+            app.compare_after((self.root / "after.ndjson").read_text(encoding="utf-8"), "after.ndjson", cfg)
+        html = app.analyze(self.text, "before.ndjson", cfg)
+        self.assertNotIn("直したあとの変化", html)
+        self.assertIn("直したあとのアクセス記録を入れると", html)
+        html2 = app.compare_after((self.root / "after.ndjson").read_text(encoding="utf-8"), "after.ndjson", cfg)
+        self.assertIn("直したあとの変化", html2)
+        self.assertNotIn("直したあとのアクセス記録を入れると", html2)
+
+    def test_live_mode_uses_claude_on_the_uploaded_log(self):
+        saved = (ROOT / "examples" / "ryokan" / "claude_response.json").read_text(encoding="utf-8")
+
+        class Msg:
+            stop_reason = "end_turn"
+            content = [type("B", (), {"type": "text", "text": saved})()]
+            usage = type("U", (), {"input_tokens": 10, "output_tokens": 20})()
+
+        class Stream:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def get_final_message(self): return Msg()
+
+        calls = []
+
+        class Client:
+            class messages:
+                @staticmethod
+                def stream(**kw):
+                    calls.append(kw)
+                    return Stream()
+
+        cfg = app.Config(self.root / "site" / "before", "雪待荘", live=True, client=Client)
+        html = app.analyze(self.text, "before.ndjson", cfg)
+        self.assertEqual(len(calls), 1)  # 検証に通るので、出し直しは無い
+        self.assertIsInstance(calls[0]["messages"][0]["content"], str)  # 送るのはブリーフ（文字列）だけ
+        self.assertIn("Claudeが書きました", html)
+        self.assertIn("1〜2分", app.upload_page(cfg))
+        self.assertNotIn("1〜2分", app.upload_page(self.cfg))
+
+    def test_report_has_approved_export(self):
+        html = app.analyze(self.text, "before.ndjson", self.cfg)
+        for needle in ("承認した下書き", "exp-text", "まとめてコピー", "サイトには何も書き込みません"):
+            self.assertIn(needle, html)
+
     def test_response_for_other_log_is_not_used(self):
         # 行IDが合わない（別の名前のファイル）ときは、Claude の下書きを使わない
         html = app.analyze(self.text, "other.ndjson", self.cfg)

@@ -6,7 +6,7 @@ import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from . import advisor, brief as brief_mod, logs, report, sample
+from . import advisor, brief as brief_mod, llm, logs, report, sample
 from .aggregate import aggregate
 from .compare import compare
 from .trace import build_trace
@@ -43,13 +43,43 @@ drop.addEventListener('drop',function(ev){send(ev.dataTransfer.files[0])});
 </script></body></html>"""
 
 
-class Config:
-    """サーバーを起動するときに決める物。ログそのものは持たない。"""
+AFTER_BLOCK = """<style>
+#after{display:block;box-sizing:border-box;max-width:880px;margin:32px auto;border:2px dashed var(--line);border-radius:16px;
+background:var(--card);padding:28px 16px;text-align:center;cursor:pointer;color:var(--ink)}
+#after.over{border-color:var(--accent)}#after b{display:block;margin-bottom:4px}#after span{display:block;color:var(--sub);font-size:.92rem}
+</style>
+<label id="after"><input id="afterfile" type="file" hidden><b>直したあとのアクセス記録を入れると、前後を比べられます</b>
+<span>ページを直してしばらくたってから、新しい記録をここに落としてください。このパソコンの中で調べるだけで、外には送りません。</span></label>
+<script>
+(function(){var z=document.getElementById('after'),i=document.getElementById('afterfile');
+function go(f){if(!f)return;z.querySelector('b').textContent='前後を比べています…';
+ fetch('/compare',{method:'POST',headers:{'X-Filename':encodeURIComponent(f.name)},body:f}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
+ .then(function(a){if(a[0]){document.open();document.write(a[1]);document.close()}else{z.querySelector('b').textContent=a[1]}})
+ .catch(function(){z.querySelector('b').textContent='うまく読み込めませんでした。もう一度お試しください。'})}
+i.addEventListener('change',function(){go(i.files[0])});
+['dragenter','dragover'].forEach(function(e){z.addEventListener(e,function(v){v.preventDefault();z.classList.add('over')})});
+['dragleave','drop'].forEach(function(e){z.addEventListener(e,function(v){v.preventDefault();z.classList.remove('over')})});
+z.addEventListener('drop',function(v){go(v.dataTransfer.files[0])});})();
+</script>"""
 
-    def __init__(self, site_dir, site_name, response_path=None, after=None):
+
+LIVE_BUSY = "AIが何回、どのページを読みに来たか数えて、Claudeが原因を考えています。1〜2分かかります…"
+
+
+def upload_page(cfg):
+    return UPLOAD_PAGE.replace("AIが何回、どのページを読みに来たか数えています…", LIVE_BUSY) if cfg.live else UPLOAD_PAGE
+
+
+class Config:
+    """サーバーを起動するときに決める物。ログそのものは持たない（直前に調べた集計だけを、メモリに持つ）。"""
+
+    def __init__(self, site_dir, site_name, response_path=None, after=None, live=False, client=None):
         self.site_dir, self.site_name = Path(site_dir), site_name
+        self.live = live  # True: 入れたログごとに、Claude API で下書きを作る（料金がかかる）
+        self.client = client  # テスト用に差し替える。None なら anthropic.Anthropic()
         self.response_text = Path(response_path).read_text(encoding="utf-8") if response_path else None
-        self.after = after  # (ログのパス, サイト情報のフォルダ) または None
+        self.after = after  # (ログのパス, サイト情報のフォルダ) または None（起動時に固定の比較先を渡す、デモ用）
+        self.last = None  # 直前にアップロードされたログの (集計, ブリーフ, 下書き)。ディスクには書かない
 
 
 def analyze(text, filename, cfg):
@@ -59,14 +89,31 @@ def analyze(text, filename, cfg):
         raise ValueError("読めるアクセス記録がありませんでした")
     agg = aggregate(rows)
     brief = brief_mod.build_brief(agg, brief_mod.load_site(cfg.site_dir), cfg.site_name)
-    if cfg.response_text:
+    if cfg.live:
+        _text, ok, _rejected, _in, _out = llm.advise(brief, cfg.client)  # 検証に通った下書きだけを使う
+        drafts = ok
+    elif cfg.response_text:
         drafts, _rejected = advisor.accept(cfg.response_text, brief)  # この記録に当てはまらない下書きは使わない
     else:
         drafts = sample.sample_drafts(brief)
+    cfg.last = (agg, brief, drafts)
     cmp = None
     if cfg.after:
         after_path = Path(cfg.after[0])
         cmp = compare(agg, aggregate(logs.parse_text(after_path.read_text(encoding="utf-8"), after_path.name)))
+    html = report.render_report(brief, drafts, cmp, build_trace(brief, drafts))
+    return html if cmp else html.replace("</body>", AFTER_BLOCK + "</body>", 1)
+
+
+def compare_after(text, filename, cfg):
+    """直前に調べたログ（直す前）と、いま入れたログ（直したあと）を比べたレポートのHTMLを作る。"""
+    if cfg.last is None:
+        raise LookupError("先に、直す前のアクセス記録を入れてください")
+    rows = logs.parse_text(text, filename)
+    if not rows:
+        raise ValueError("読めるアクセス記録がありませんでした")
+    agg, brief, drafts = cfg.last
+    cmp = compare(agg, aggregate(rows))
     return report.render_report(brief, drafts, cmp, build_trace(brief, drafts))
 
 
@@ -81,10 +128,10 @@ def make_handler(cfg):
             self.wfile.write(data)
 
         def do_GET(self):
-            self._send(200, UPLOAD_PAGE) if self.path in ("/", "/index.html") else self._send(404, "ページがありません")
+            self._send(200, upload_page(cfg)) if self.path in ("/", "/index.html") else self._send(404, "ページがありません")
 
         def do_POST(self):
-            if self.path != "/analyze":
+            if self.path not in ("/analyze", "/compare"):
                 return self._send(404, "ページがありません")
             size = int(self.headers.get("Content-Length", 0))
             if size > MAX_BYTES:
@@ -92,9 +139,16 @@ def make_handler(cfg):
             from urllib.parse import unquote
             name = Path(unquote(self.headers.get("X-Filename", "upload.txt"))).name
             try:
-                html = analyze(self.rfile.read(size).decode("utf-8"), name, cfg)
+                run = analyze if self.path == "/analyze" else compare_after
+                html = run(self.rfile.read(size).decode("utf-8"), name, cfg)
+            except LookupError as e:
+                return self._send(409, str(e))
             except (ValueError, KeyError, json.JSONDecodeError, UnicodeDecodeError):
                 return self._send(400, "読み込めませんでした。Cloudflareのログ（.ndjson）か、nginx・Apacheのアクセスログを選んでください。")
+            except Exception as e:  # Claude API への接続・認証・応答の失敗（キーの中身は出さない）
+                if not cfg.live:
+                    raise
+                return self._send(502, f"Claudeに接続できませんでした（{type(e).__name__}）。キーとネットワークを確かめて、もう一度お試しください。")
             self._send(200, html)
 
         def log_message(self, *args):  # 受け取った内容を、端末にも残さない
