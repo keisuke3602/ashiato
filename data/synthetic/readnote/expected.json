@@ -1,0 +1,29 @@
+{
+  "hole_1_export_kindle_missing": {
+    "ai_404": 140,
+    "ai_other": 0,
+    "human": 0
+  },
+  "hole_2_pricing_blocked": {
+    "blocked_429": 69,
+    "blocked_non429": 0,
+    "unblocked_ai_200": 35,
+    "human_pricing_200": 466,
+    "human_pricing_total": 466
+  },
+  "healthy_blog": {
+    "ai_200": 417,
+    "ai_non200": 0
+  },
+  "ai_share": {
+    "ai_requests": 1037,
+    "total": 7995
+  },
+  "page_share": {
+    "page_requests": 6180,
+    "total": 7995
+  },
+  "totals": {
+    "before": 7995
+  }
+}

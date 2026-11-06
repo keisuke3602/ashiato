@@ -1,0 +1,41 @@
+{
+  "1_access_missing": {
+    "ai_404_before": 197,
+    "ai_404_after": 0,
+    "ai_200_after": 75
+  },
+  "2_moved_no_redirect": {
+    "ai_404_old_path_before": 61,
+    "ai_301_old_path_after": 35,
+    "ai_answer_visitors_new_path_before": 22
+  },
+  "3_healthy": {
+    "ai_200": 184,
+    "ai_non200": 0
+  },
+  "4_noise": {
+    "requests": 209,
+    "non404": 0
+  },
+  "5_thin_page": {
+    "ai_fetches_meals": 0,
+    "human_fetches_meals": 70
+  },
+  "6_robots_block": {
+    "claudebot_requests": 40,
+    "claudebot_non_robots": 0
+  },
+  "7_spoofed_gptbot": {
+    "requests": 160,
+    "verified_category_nonempty": 0
+  },
+  "8_utm_requests": {
+    "human_200": 44,
+    "not_human": 91,
+    "not_human_200": 0
+  },
+  "totals": {
+    "before": 4480,
+    "after": 2413
+  }
+}

@@ -1,0 +1,52 @@
+[
+  {
+    "path": "/",
+    "title": "かきわけ",
+    "in_sitemap": true
+  },
+  {
+    "path": "/features",
+    "title": "機能",
+    "in_sitemap": true
+  },
+  {
+    "path": "/pricing",
+    "title": "料金",
+    "in_sitemap": true
+  },
+  {
+    "path": "/extension",
+    "title": "ブラウザ拡張",
+    "in_sitemap": true
+  },
+  {
+    "path": "/about",
+    "title": "かきわけについて",
+    "in_sitemap": true
+  },
+  {
+    "path": "/blog/reading-notes-habit",
+    "title": "読書ノートを続けるコツ",
+    "in_sitemap": true
+  },
+  {
+    "path": "/blog/kindle-highlights-tips",
+    "title": "Kindleのハイライトを活かす",
+    "in_sitemap": true
+  },
+  {
+    "path": "/blog/ai-and-reading",
+    "title": "AI時代の読書",
+    "in_sitemap": true
+  },
+  {
+    "path": "/blog/spaced-review",
+    "title": "間隔をあけた復習",
+    "in_sitemap": true
+  },
+  {
+    "path": "/help/getting-started",
+    "title": "はじめてのかきわけ",
+    "in_sitemap": true
+  }
+]
