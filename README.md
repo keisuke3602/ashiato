@@ -40,7 +40,12 @@ python3 scripts/gen_synthetic_b.py          # 合成データB(読書ノート�
 python3 scripts/serve.py data/synthetic/ryokan/site/before 雪待荘 \
   --response examples/ryokan/claude_response.json \
   --after data/synthetic/ryokan/after.ndjson
+pip install anthropic                       # API で下書きを取るときだけ必要（API キーは環境変数 ANTHROPIC_API_KEY）
+python3 scripts/run_advisor.py data/synthetic/ryokan/before.ndjson data/synthetic/ryokan/site/before 雪待荘 out/ryokan_response.json --run
 ```
+
+上の run_advisor.py は、`--run` を付けると API を呼びます（料金がかかります）。付けなければ呼びません。
+`serve.py` には、`examples/` の保存済みの返答を `--response` に渡しても動かせます（API キーは要りません）。
 
 ブラウザで `http://127.0.0.1:8765/` を開き、`data/synthetic/ryokan/before.ndjson` を落とします。
 入れたログはこのパソコンの中で解析するだけで、ディスクにも外にも書き出しません。
@@ -58,8 +63,10 @@ python3 scripts/serve.py data/synthetic/ryokan/site/before 雪待荘 \
 
 - 動くもの: ログの読み込み(Cloudflare Logpush、nginx/Apache)、AIの種類の判別、ページ別の集計、ブリーフの作成、
   下書きの検証、日本語の画面(全体、ページごとの様子、調べた順番、次にやること、手を付けなくてよいこと、前後比較)。
+- Claude API(`claude-opus-5-5`)を呼び出して下書きを取る部分があります(`scripts/run_advisor.py`)。
+  ブリーフと指示文だけを渡し、検証に落ちた下書きは理由を付けて出し直させます。API キーは環境変数から読み、
+  `--run` を付けないと API を呼びません。Managed Agents / Agent SDK は使っていません(API の呼び出しです)。
 - `examples/` の下書きは、Claude Code の中の別のClaudeに、ブリーフと指示文だけを渡して書かせた実際の出力です。
-  Claudeを API やエージェントの仕組みから呼び出す部分は、まだ組み込んでいません。
 - 画面の「見本」の下書きは、Claudeではなく決まった規則で作ったものです(Claudeの返答を渡さないと出ます)。
 - 実サイトでの確認は、集計の傾向を見たのみです。このリポジトリには、実際のログも、実際の集計値も入っていません。
 - 設計とデモの台本は `docs/` にあります。

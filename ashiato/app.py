@@ -20,8 +20,9 @@ UPLOAD_PAGE = """<!doctype html><html lang="ja"><head><meta charset="utf-8"><met
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.8 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
 main{max-width:640px;margin:0 auto;padding:56px 16px}h1{font-size:1.8rem;margin:0}
 .lead{color:var(--sub);margin:4px 0 28px}
-#drop{border:2px dashed var(--line);border-radius:16px;background:var(--card);padding:48px 16px;text-align:center;cursor:pointer}
+#drop{display:block;box-sizing:border-box;border:2px dashed var(--line);border-radius:16px;background:var(--card);padding:48px 16px;text-align:center;cursor:pointer}
 #drop.over{border-color:var(--accent)}#drop b{display:block;font-size:1.15rem;margin-bottom:6px}
+#drop .lead{display:block;margin:0}
 #busy{display:none;text-align:center;padding:48px 0;font-size:1.1rem}
 details{margin-top:28px;color:var(--sub);font-size:.92rem}
 </style></head><body><main>
