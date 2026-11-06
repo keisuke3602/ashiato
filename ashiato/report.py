@@ -26,6 +26,7 @@ h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.15rem;margin:36px 0 12px}
 pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font:inherit;font-size:.92rem}
 .ev{color:var(--sub);font-size:.8rem;word-break:break-all}
 .acts button{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 14px;margin-right:6px;cursor:pointer}
+.howto{color:var(--sub);font-size:.92rem;margin:8px 0}
 .exp textarea{width:100%;box-sizing:border-box;min-height:140px;font:inherit;font-size:.88rem;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);padding:10px}
 .exp button{font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:6px 16px;cursor:pointer;margin-top:8px}
 .acts button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -38,7 +39,7 @@ table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 10px
 JS = r"""
 function refresh(){var box=document.getElementById('exp-text'),n=document.getElementById('exp-n');if(!box)return;var out=[],c=0;
   document.querySelectorAll('.card[data-id]').forEach(function(card){var a=card.querySelector('button[data-v=approve]');
-    if(a&&a.getAttribute('aria-pressed')==='true'){c++;var pre=card.querySelector('pre');out.push('■ '+card.querySelector('h3').textContent+'\n'+card.querySelector('p').textContent+(pre?'\n\n'+pre.textContent:''))}});
+    if(a&&a.getAttribute('aria-pressed')==='true'){c++;var pre=card.querySelector('pre'),hw=card.querySelector('.howto');out.push('■ '+card.querySelector('h3').textContent+'\n'+card.querySelector('p').textContent+(pre?'\n\n'+pre.textContent:'')+(hw?'\n\n'+hw.textContent:''))}});
   box.value=out.join('\n\n----------\n\n');n.textContent=c}
 var cp=document.getElementById('exp-copy');if(cp)cp.addEventListener('click',function(){var box=document.getElementById('exp-text');box.select();try{navigator.clipboard.writeText(box.value)}catch(e){document.execCommand('copy')}cp.textContent='コピーしました'});
 document.querySelectorAll('.card[data-id]').forEach(function(card){
@@ -74,12 +75,13 @@ def _evidence(d, times):
 
 def _card(i, d, times, actions=True):
     body = f"<pre>{escape(d['body'])}</pre>" if d["body"] else ""
+    howto = f'<p class="howto"><b>反映のしかた:</b> {escape(d["howto"])}</p>' if d.get("howto") else ""
     btn = ('<div class="acts"><button data-v="approve" aria-pressed="false">承認</button>'
            '<button data-v="edit" aria-pressed="false">修正する</button>'
            '<button data-v="reject" aria-pressed="false">却下</button></div>') if actions else ""
     return (f'<div class="card" data-id="{i}"><h3>{escape(d["title"])}</h3>'
             f'<span class="tag {d["priority"]}">{PRIORITY_LABEL[d["priority"]]}</span>'
-            f'<span class="tag">{KIND_LABEL[d["kind"]]}</span><p>{escape(d["why"])}</p>{body}'
+            f'<span class="tag">{KIND_LABEL[d["kind"]]}</span><p>{escape(d["why"])}</p>{body}{howto}'
             f'{_evidence(d, times)}{btn}</div>')
 
 

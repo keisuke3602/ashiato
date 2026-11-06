@@ -35,6 +35,15 @@ class AppTest(unittest.TestCase):
         n = (self.root / "before.nginx.txt").read_text(encoding="utf-8")
         self.assertEqual(logs.parse_text(n, "before.nginx.txt"), logs.parse(self.root / "before.nginx.txt"))
 
+    def test_nginx_format_with_leading_virtual_host(self):
+        # 行頭にドメイン名が付く形式（レンタルサーバーのマニュアルにある形）。内容は合成した例
+        std = '203.0.113.9 - - [11/Jul/2026:12:09:17 +0900] "GET /access HTTP/1.1" 404 512 "-" "GPTBot/1.2"'
+        vh = "example.test " + std
+        a, b = logs.parse_text(std, "a.txt"), logs.parse_text(vh, "b.txt")
+        self.assertEqual(len(a), 1)
+        self.assertEqual(len(b), 1)
+        self.assertEqual((a[0]["path"], a[0]["status"], a[0]["ua"]), (b[0]["path"], b[0]["status"], b[0]["ua"]))
+
     def test_analyze_returns_full_report(self):
         html = app.analyze(self.text, "before.ndjson", self.cfg)
         for needle in ("次にやること", "調べた順番", "ページごとの様子", "直したあとの変化", "Claudeが書きました"):
@@ -80,6 +89,15 @@ class AppTest(unittest.TestCase):
         self.assertIn("Claudeが書きました", html)
         self.assertIn("1〜2分", app.upload_page(cfg))
         self.assertNotIn("1〜2分", app.upload_page(self.cfg))
+
+    def test_howto_is_shown_and_validated(self):
+        from ashiato import drafts as dr
+        d = {"kind": "redirect", "target": "/a", "title": "t", "why": "w", "body": "b", "priority": "high",
+             "evidence": ["x:1"], "howto": "サーバーの .htaccess に貼る"}
+        self.assertEqual(dr.validate(d, {"x:1"}), [])
+        self.assertTrue(dr.validate(dict(d, howto=5), {"x:1"}))
+        self.assertTrue(dr.validate(dict(d, howto="ステータスコードを見る"), {"x:1"}))
+        self.assertEqual(dr.validate({k: v for k, v in d.items() if k != "howto"}, {"x:1"}), [])  # 古い返答も有効
 
     def test_report_has_approved_export(self):
         html = app.analyze(self.text, "before.ndjson", self.cfg)
