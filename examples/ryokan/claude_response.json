@@ -2,64 +2,222 @@
   {
     "kind": "new_page",
     "target": "/access",
-    "title": "「アクセス」ページを新しく作る",
-    "why": "AIが「/access」を探しに来て、ページが見つからず163回すれ違っています。人間のお客様も41回このページを探しています。サイトにはこのページが無いので、道案内を聞かれても答えに使ってもらえません。",
-    "body": "# アクセス\n\n雪待荘へのご案内です。\n\n## 電車でお越しの場合\n（最寄り駅名）から送迎バス／タクシーで約（○○）分。\n\n## お車でお越しの場合\n（最寄りのインターチェンジ名）から約（○○）分。駐車場は（○○）台、無料です。\n\n## 住所\n（郵便番号・住所を入れてください）\n\n## チェックイン・チェックアウト\nチェックイン（○○:○○）／チェックアウト（○○:○○）\n\n※ 括弧の部分は宿の実際の情報に書き換えてから公開してください。",
+    "title": "「アクセス（行き方）」のページを新しく作る",
+    "why": "AIが /access というページを読みに来ましたが、ページが無いため読めませんでした。名前が確かな検索用のAIだけでも63回読めておらず、人の訪問も41回ありました。行き方の情報はお客様が知りたいはずの情報ですが、今のサイトのページ一覧にはありません。",
+    "body": "アクセス・交通のご案内\n\n■ 住所\n〒［郵便番号］ ［住所］\n雪待荘\n\n■ お車でお越しの場合\n［最寄りのインターチェンジ］から約［◯］分。\n駐車場：［台数］台（無料／有料）\n冬季は雪道になります。スタッドレスタイヤやチェーンをご用意ください。［必要に応じて書き換え］\n\n■ 電車・バスでお越しの場合\n［最寄り駅］から［バス／タクシー］で約［◯］分。\n送迎：［有無・条件・予約方法］\n\n■ チェックイン／チェックアウト\nチェックイン：［時刻］\nチェックアウト：［時刻］\n\n■ お問い合わせ\nご不明な点は、お問い合わせページ（/contact）からご連絡ください。\n\n※［ ］の部分は、実際の内容に書き換えてください。",
+    "howto": "お使いのサーバーや管理画面で、住所が /access になる新しいページを作り、［ ］を実際の内容に直してから本文を貼ってください。",
     "priority": "high",
-    "evidence": ["before.ndjson:93", "before.ndjson:94", "before.ndjson:97", "before.ndjson:99", "before.ndjson:115"]
+    "evidence": [
+      "before.ndjson:93",
+      "before.ndjson:94",
+      "before.ndjson:97",
+      "before.ndjson:99",
+      "before.ndjson:115",
+      "before.ndjson:204",
+      "before.ndjson:232",
+      "before.ndjson:327",
+      "site:pages"
+    ]
   },
   {
     "kind": "redirect",
     "target": "/plans/winter",
-    "title": "「/plans/winter」を冬の宿泊プランへ転送する",
-    "why": "AIが「/plans/winter」という存在しない住所を56回たずねています。綴りがほぼ同じ「/plan/winter」（冬の宿泊プラン）があり、AI経由の来訪者が22人いる大事なページです。転送を足せば、新しいページを作らずに済みます。",
-    "body": "/plans/winter  →  /plan/winter  （恒久的な転送）",
-    "priority": "mid",
-    "evidence": ["before.ndjson:103", "before.ndjson:106", "before.ndjson:110", "before.ndjson:148", "before.ndjson:256"]
+    "title": "/plans/winter を、冬の宿泊プランのページへ転送する",
+    "why": "AIが、実際の住所（/plan/winter）と1文字違う /plans/winter を読みに来て、ページが見つかりませんでした。名前が確かな検索用のAIだけでも22回です。正しい冬の宿泊プランのページは、AIの答えから来たお客様が22回あり、よく読まれています。",
+    "body": "Redirect 301 /plans/winter /plan/winter",
+    "howto": "お使いのサーバーの .htaccess に、この行を貼ってください。.htaccess が使えないサービスの場合は、管理画面の転送（リダイレクト）の設定で、同じ内容を登録してください。",
+    "priority": "high",
+    "evidence": [
+      "before.ndjson:103",
+      "before.ndjson:106",
+      "before.ndjson:110",
+      "before.ndjson:148",
+      "before.ndjson:256",
+      "before.ndjson:267",
+      "before.ndjson:432",
+      "before.ndjson:529"
+    ]
   },
   {
     "kind": "fix_config",
     "target": "/robots.txt",
-    "title": "ClaudeBotだけ立ち入りを断っている設定を見直す",
-    "why": "ClaudeBotは40回来ていますが、すべて「入ってよいか」の確認だけで、ページは1つも読まれていません。robots.txt で ClaudeBot だけ全面的に断っているためです。Claude系のAIに宿を紹介してほしいなら、この2行を外す必要があります。意図して断っている場合はそのままで構いません。",
-    "body": "削除する行:\nUser-agent: ClaudeBot\nDisallow: /",
+    "title": "ClaudeBot（AnthropicのAI）を断っている設定が、わざとか確かめる",
+    "why": "サイトの案内ファイル（robots.txt）で、ClaudeBot だけがサイト全体を読めないようにしてあります。ClaudeBot は40回来ましたが、案内ファイルだけを見て帰り、ページは1つも読んでいません。わざと断っているのでなければ、次の2行を消すとページを読めるようになります。",
+    "body": "User-agent: ClaudeBot\nDisallow: /",
+    "howto": "お使いのサーバーや管理画面で、サイトのトップにある robots.txt を開き、この2行を消してください。わざと断っている場合は、そのままで構いません。",
     "priority": "mid",
-    "evidence": ["before.ndjson:8", "before.ndjson:100", "before.ndjson:124", "before.ndjson:206", "before.ndjson:287"]
+    "evidence": [
+      "before.ndjson:8",
+      "before.ndjson:100",
+      "before.ndjson:124",
+      "before.ndjson:206",
+      "before.ndjson:287",
+      "site:robots.txt:ClaudeBot"
+    ]
   },
   {
     "kind": "rewrite_page",
     "target": "/meals",
-    "title": "「お食事」ページの中身を増やす",
-    "why": "お食事ページは人間には70回見られていますが、AIは一度も読みに来ていません。本文が45語しかなく、AIが答えに使える情報が少ないためと考えられます。他のページより緊急度は低めです。",
-    "body": "追記の案:\n- 夕食の内容（例: 季節の会席、地元の食材）と、料金に含まれるかどうか\n- 朝食の内容と提供時間\n- アレルギーや苦手な食材への対応可否\n- お子様向け・ベジタリアン向けの用意の有無\n※ 実際の献立・対応は宿の情報に合わせて書き換えてください。",
+    "title": "「お食事」のページの中身を増やす",
+    "why": "お食事のページは本文が45語しかなく、この期間にAIは一度も読みに来ていません。一方で、人の訪問は70回あり、お客様の関心はあるページです。",
+    "body": "お食事\n\n■ ご夕食\n［献立の内容・地元の食材・品数など］\nお食事処：［お部屋食／食事処など］\n時間：［時刻］\n\n■ ご朝食\n［内容］\n時間：［時刻］\n\n■ 季節のお料理\n冬：［冬の料理］\n夏：［夏の料理］\n詳しくは、冬の宿泊プラン（/plan/winter）・夏の宿泊プラン（/plan/summer）もご覧ください。\n\n■ アレルギー・苦手な食材\n［対応の可否・連絡方法］\nご予約時、またはお問い合わせページ（/contact）からお知らせください。\n\n※［ ］の部分は、実際の内容に書き換えてください。",
+    "howto": "お使いのサーバーや管理画面で「お食事」のページを開き、［ ］を実際の内容に直してから、本文を差し替えてください。",
     "priority": "low",
-    "evidence": ["before.ndjson:36", "before.ndjson:178", "before.ndjson:248"]
+    "evidence": [
+      "before.ndjson:36",
+      "before.ndjson:178",
+      "before.ndjson:248",
+      "site:page:/meals"
+    ]
   },
   {
     "kind": "leave_alone",
-    "target": "",
-    "title": "AIに問題なく読まれているページは、そのままで良い",
-    "why": "トップ（68回）、雪まつりの記事（156回）、お問い合わせ（39回）、温泉（55回）、夏のプラン（49回）、冬のプラン（67回）、お部屋（60回）は、AIが問題なく読めています。手を入れる必要はありません。",
+    "target": "/plan/winter",
+    "title": "冬の宿泊プランのページは、このままでよい",
+    "why": "AIは67回、問題なく読めています。AIの答えから来たお客様も22回あり、よく役立っているページです。",
     "body": "",
+    "howto": "",
     "priority": "low",
-    "evidence": ["before.ndjson:112", "before.ndjson:86", "before.ndjson:85", "before.ndjson:102", "before.ndjson:96", "before.ndjson:24", "before.ndjson:141"]
+    "evidence": [
+      "before.ndjson:24",
+      "before.ndjson:105",
+      "before.ndjson:113",
+      "before.ndjson:145",
+      "before.ndjson:149"
+    ]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/blog/matsuri-2026",
+    "title": "雪まつりの記事は、このままでよい",
+    "why": "AIは156回、問題なく読めています。AIの答えから来たお客様も11回ありました。",
+    "body": "",
+    "howto": "",
+    "priority": "low",
+    "evidence": [
+      "before.ndjson:86",
+      "before.ndjson:91",
+      "before.ndjson:92",
+      "before.ndjson:95",
+      "before.ndjson:98"
+    ]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/onsen",
+    "title": "温泉のページは、このままでよい",
+    "why": "AIは55回、問題なく読めています。AIの答えから来たお客様も11回ありました。",
+    "body": "",
+    "howto": "",
+    "priority": "low",
+    "evidence": [
+      "before.ndjson:102",
+      "before.ndjson:114",
+      "before.ndjson:258",
+      "before.ndjson:300",
+      "before.ndjson:338"
+    ]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/",
+    "title": "トップページは、このままでよい",
+    "why": "AIは68回、問題なく読めています。今は直す必要はありません。",
+    "body": "",
+    "howto": "",
+    "priority": "low",
+    "evidence": [
+      "before.ndjson:112",
+      "before.ndjson:137",
+      "before.ndjson:152",
+      "before.ndjson:153",
+      "before.ndjson:260"
+    ]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/rooms",
+    "title": "お部屋のページは、このままでよい",
+    "why": "AIは60回、問題なく読めています。今は直す必要はありません。",
+    "body": "",
+    "howto": "",
+    "priority": "low",
+    "evidence": [
+      "before.ndjson:141",
+      "before.ndjson:301",
+      "before.ndjson:490",
+      "before.ndjson:491",
+      "before.ndjson:550"
+    ]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/plan/summer",
+    "title": "夏の宿泊プランのページは、このままでよい",
+    "why": "AIは49回、問題なく読めています。今は直す必要はありません。",
+    "body": "",
+    "howto": "",
+    "priority": "low",
+    "evidence": [
+      "before.ndjson:96",
+      "before.ndjson:140",
+      "before.ndjson:468",
+      "before.ndjson:862",
+      "before.ndjson:916"
+    ]
+  },
+  {
+    "kind": "leave_alone",
+    "target": "/contact",
+    "title": "お問い合わせのページは、このままでよい",
+    "why": "AIは39回、問題なく読めています。今は直す必要はありません。",
+    "body": "",
+    "howto": "",
+    "priority": "low",
+    "evidence": [
+      "before.ndjson:85",
+      "before.ndjson:109",
+      "before.ndjson:138",
+      "before.ndjson:154",
+      "before.ndjson:305"
+    ]
   },
   {
     "kind": "ignore",
     "target": "",
-    "title": "ログイン画面や設定ファイルを探る不審なアクセスは無視してよい",
-    "why": "WordPressのログイン画面や設定ファイル（.env など）を探る機械的なアクセスが209回あります。AIの動きとは関係なく、集客の判断には使えません。",
+    "title": "AIを名乗っているが、本物か確かめられないアクセスは気にしなくてよい",
+    "why": "AIの名前を名乗っていても、本物か確かめられないアクセスがありました（PerplexityBot を名乗るもの108回、GPTBot を名乗るもの160回、ChatGPT-User を名乗るもの39回）。これらはAIの需要として数えていません。対応は不要です。",
     "body": "",
+    "howto": "",
     "priority": "low",
-    "evidence": ["before.ndjson:11", "before.ndjson:320", "before.ndjson:13", "before.ndjson:15", "before.ndjson:14", "before.ndjson:34", "before.ndjson:16", "before.ndjson:32"]
+    "evidence": [
+      "before.ndjson:83",
+      "before.ndjson:84",
+      "before.ndjson:87",
+      "before.ndjson:39",
+      "before.ndjson:40",
+      "before.ndjson:7",
+      "before.ndjson:12",
+      "before.ndjson:81"
+    ]
   },
   {
     "kind": "ignore",
     "target": "",
-    "title": "本物と確認できないAI名乗りのアクセスは、AIの需要として数えない",
-    "why": "GPTBotを名乗るアクセスのうち160回、ChatGPT-Userを名乗るうち39回、PerplexityBotを名乗るうち108回は、本物と確認できていません。なりすましの可能性があるため、これらは対策の根拠に使いません。",
+    "title": "サイトに無い管理画面などを探る、機械的なアクセスは無視してよい",
+    "why": "/wp-login.php や /.env など、このサイトに無い管理用の場所を探るアクセスが209回ありました。どのサイトにも来る機械的なものなので、AIへの対応としては何もしなくて構いません。",
     "body": "",
+    "howto": "",
     "priority": "low",
-    "evidence": ["before.ndjson:39", "before.ndjson:40", "before.ndjson:7", "before.ndjson:12", "before.ndjson:83", "before.ndjson:84"]
+    "evidence": [
+      "before.ndjson:11",
+      "before.ndjson:320",
+      "before.ndjson:13",
+      "before.ndjson:15",
+      "before.ndjson:14",
+      "before.ndjson:34",
+      "before.ndjson:16",
+      "before.ndjson:32"
+    ]
   }
 ]
