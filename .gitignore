@@ -31,3 +31,6 @@ build/
 
 # Generated reports (rebuild with scripts/build_report.py)
 out/
+
+# Managed Agents resource IDs (written by `ant apply`; keep org IDs out of the public repo)
+claude-lock.json
