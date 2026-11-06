@@ -59,6 +59,13 @@ def _tiles(brief):
             ("AIの回答から来たお客様", visitors, "")]
 
 
+def _site_tiles(brief):
+    c = brief["site_check"]
+    return [("調べたページ数", c["page_list"]["count"], ""),
+            ("AIを断っている設定", len(c["ai_bots_blocked_in_robots"]), "bad" if c["ai_bots_blocked_in_robots"] else ""),
+            ("本文が短いページ", len(c["thin_pages"]), "")]
+
+
 def _when(ts):
     """UTC の時刻文字列を、日本時間の「9月12日 14:03」に直す。"""
     t = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=9)
@@ -117,6 +124,20 @@ def _pages(rows):
             f'<th>読めた回数</th><th>読めなかった回数</th><th>AIの回答から来たお客様</th><th>お客様の訪問</th></tr>{body}</table></div>')
 
 
+def _ai_answers(a):
+    if not a:
+        return ""
+    cards = []
+    for it in a["items"]:
+        cited = "あなたのサイトが、出典に入っていました。" if it["site_cited"] else "あなたのサイトは、出典に入っていませんでした。"
+        named = "答えの中に、店名が出ていました。" if it["site_named"] else "答えの中に、店名は出ていませんでした。"
+        doms = "、".join(it["cited_domains"]) or "（出典なし）"
+        cards.append(f'<div class="card"><h3>{escape(it["question"])}</h3><p>{escape(it["answer"])}</p>'
+                     f'<p class="sub">{cited}{named}<br>出典のサイト: {escape(doms)}</p>'
+                     f'<div class="ev">記録番号: {escape(" ".join(it["evidence"]))}</div></div>')
+    return (f'<h2>AIは、お客様の質問に、どう答えるか</h2><p class="sub">{escape(a["note"])}</p>' + "".join(cards))
+
+
 def _trace(steps, times):
     if not steps:
         return ""
@@ -136,16 +157,18 @@ def render_report(brief, drafts, compare=None, trace=None):
     times = brief.get("evidence_times", {})
     sample = any(d.get("source") == "sample" for d in drafts)
     p = brief["period"] or {"from": "", "to": ""}
-    tiles = "".join(f'<div class="tile {c}"><b>{n:,}</b><span>{escape(t)}</span></div>' for t, n, c in _tiles(brief))
+    site_only = brief.get("mode") == "site_only"
+    tiles = "".join(f'<div class="tile {c}"><b>{n:,}</b><span>{escape(t)}</span></div>' for t, n, c in (_site_tiles(brief) if site_only else _tiles(brief)))
     note = ('<p class="sub">※ これは見本の下書きです。実際の助言はClaudeが書きます。</p>' if sample else
             '<p class="sub">下書きはClaudeが書きました。公開する前に、必ず内容を確認してください。</p>'
             if any(d.get("source") == "claude" for d in drafts) else "")
     return f"""<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>足跡 {escape(brief['site_name'])}</title><style>{CSS}</style></head><body><main>
 <h1>{escape(brief['site_name'])} のAI足跡</h1>
-<div class="sub">{escape(p['from'])} 〜 {escape(p['to'])} のアクセスをもとにしています。承認するまで、サイトには何も反映されません。</div>
+<div class="sub">{"サイトの公開ページをもとにしています（アクセスの記録は使っていません）。" if site_only else escape(p['from']) + " 〜 " + escape(p['to']) + " のアクセスをもとにしています。"}承認するまで、サイトには何も反映されません。</div>
 {note}<div class="tiles">{tiles}</div>
-{_pages(page_rows(brief)) if brief.get("site_pages") else ""}
+{_pages(page_rows(brief)) if brief.get("site_pages") and not site_only else ""}
+{_ai_answers(brief.get("ai_answers"))}
 {_trace(trace, times)}
 <h2>次にやること（{len(acts)}件）</h2>
 {''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}

@@ -6,7 +6,9 @@ import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from . import advisor, brief as brief_mod, llm, logs, report, sample
+from urllib.parse import urlsplit
+
+from . import advisor, ask_ai, brief as brief_mod, llm, logs, report, sample, sitecheck
 from .aggregate import aggregate
 from .compare import compare
 from .trace import build_trace
@@ -66,8 +68,29 @@ z.addEventListener('drop',function(v){go(v.dataTransfer.files[0])});})();
 LIVE_BUSY = "AIが何回、どのページを読みに来たか数えて、Claudeが原因を考えています。1〜2分かかります…"
 
 
+SITE_BLOCK = """<div id="siteform" style="margin-top:36px;padding-top:24px;border-top:1px solid var(--line)">
+<b>アクセスの記録が取れない・わからない方へ</b>
+<p class="lead" style="margin:4px 0 10px">サイトのアドレスを入れると、公開されているページから、AIに読まれやすい状態かを調べます（記録は要りません）。</p>
+<input id="siteurl" type="text" placeholder="https://example.com" style="width:70%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)">
+<p style="margin:10px 0 4px"><label><input id="askai" type="checkbox"> AIの答えも確かめる（お客様が聞きそうな質問に、AIがどう答えるか。追加で数分かかります）</label></p>
+<input id="biz" type="text" placeholder="事業の説明（例: 北陸の温泉地にある小さな旅館）" style="width:70%;box-sizing:border-box;font:inherit;padding:8px;margin-bottom:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)"><br>
+<button id="sitego" style="font:inherit;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;cursor:pointer">調べる</button>
+<button id="sitedemo" style="font:inherit;padding:8px 16px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;cursor:pointer">デモ用の架空のサイトで試す</button>
+</div><script>
+(function(){var u=document.getElementById('siteurl'),busy=document.getElementById('busy');
+function go(url){busy.textContent='サイトのページを読んで、Claudeが原因を考えています。数分かかります…';busy.style.display='block';document.getElementById('siteform').style.display='none';document.getElementById('drop').style.display='none';
+ var body=JSON.stringify({url:url,ask_ai:document.getElementById('askai').checked,business:document.getElementById('biz').value});
+ fetch('/site',{method:'POST',body:body}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
+ .then(function(a){if(a[0]){document.open();document.write(a[1]);document.close()}else{busy.textContent=a[1]}}).catch(function(){busy.textContent='うまく読み込めませんでした。'})}
+document.getElementById('sitego').addEventListener('click',function(){if(u.value.trim())go(u.value.trim())});
+document.getElementById('sitedemo').addEventListener('click',function(){go('')});})();
+</script>"""
+
+
 def upload_page(cfg):
-    return UPLOAD_PAGE.replace("AIが何回、どのページを読みに来たか数えています…", LIVE_BUSY) if cfg.live else UPLOAD_PAGE
+    if not cfg.live:
+        return UPLOAD_PAGE
+    return UPLOAD_PAGE.replace("AIが何回、どのページを読みに来たか数えています…", LIVE_BUSY).replace("</main>", SITE_BLOCK + "</main>", 1)
 
 
 class Config:
@@ -105,6 +128,28 @@ def analyze(text, filename, cfg):
     return html if cmp else html.replace("</body>", AFTER_BLOCK + "</body>", 1)
 
 
+def diagnose_site(body, cfg):
+    """アクセスの記録が無いときの診断。body は、アドレスの文字列、または {"url","ask_ai","business"} の JSON。
+    url が空なら、起動時に渡されたサイトの情報（デモ用の保存済み）を使う。ask_ai が真なら、AIの答えも確かめる。"""
+    if not cfg.live:
+        raise LookupError("サイトの診断には、起動時に --live（Claude API）が必要です")
+    opts = json.loads(body) if body.lstrip().startswith("{") else {"url": body}
+    url = str(opts.get("url", "")).strip()
+    site = sitecheck.fetch_site(url) if url else brief_mod.load_site(cfg.site_dir)
+    name = cfg.site_name if not url else url
+    brief = brief_mod.build_site_only_brief(site, name)
+    if opts.get("ask_ai"):
+        client = cfg.client
+        if client is None:
+            import anthropic
+            client = anthropic.Anthropic()
+        domain = urlsplit(url if "://" in url else "https://" + url).netloc if url else ""
+        brief["ai_answers"] = ask_ai.check_ai_answers(client, cfg.site_name, domain, str(opts.get("business", "")).strip())
+    _text, drafts, _rejected, _in, _out = llm.advise(brief, cfg.client)
+    cfg.last = None  # 前後の比較は、アクセスの記録があるときだけ
+    return report.render_report(brief, drafts, None, build_trace(brief, drafts))
+
+
 def compare_after(text, filename, cfg):
     """直前に調べたログ（直す前）と、いま入れたログ（直したあと）を比べたレポートのHTMLを作る。"""
     if cfg.last is None:
@@ -131,7 +176,7 @@ def make_handler(cfg):
             self._send(200, upload_page(cfg)) if self.path in ("/", "/index.html") else self._send(404, "ページがありません")
 
         def do_POST(self):
-            if self.path not in ("/analyze", "/compare"):
+            if self.path not in ("/analyze", "/compare", "/site"):
                 return self._send(404, "ページがありません")
             size = int(self.headers.get("Content-Length", 0))
             if size > MAX_BYTES:
@@ -139,11 +184,14 @@ def make_handler(cfg):
             from urllib.parse import unquote
             name = Path(unquote(self.headers.get("X-Filename", "upload.txt"))).name
             try:
-                run = analyze if self.path == "/analyze" else compare_after
-                html = run(self.rfile.read(size).decode("utf-8"), name, cfg)
+                body = self.rfile.read(size).decode("utf-8")
+                html = (diagnose_site(body, cfg) if self.path == "/site"
+                        else (analyze if self.path == "/analyze" else compare_after)(body, name, cfg))
             except LookupError as e:
                 return self._send(409, str(e))
-            except (ValueError, KeyError, json.JSONDecodeError, UnicodeDecodeError):
+            except (ValueError, KeyError, json.JSONDecodeError, UnicodeDecodeError) as e:
+                if self.path == "/site" and isinstance(e, ValueError) and not isinstance(e, UnicodeDecodeError):
+                    return self._send(400, str(e))
                 return self._send(400, "読み込めませんでした。Cloudflareのログ（.ndjson）か、nginx・Apacheのアクセスログを選んでください。")
             except Exception as e:  # Claude API への接続・認証・応答の失敗（キーの中身は出さない）
                 if not cfg.live:

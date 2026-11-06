@@ -45,3 +45,21 @@ JSON の配列だけを返す。各要素は次の項目を持つ。
 - robots_blocks → 設定ミスの可能性。拒否している行を直す案を示す。
 - pages_ai_never_fetched で内容が薄いページ → 書き直し（優先度は低め）。
 - healthy_pages → leave_alone。noise → ignore。unverified_ai_claims → ignore。
+
+## サイトの公開ページの事実（site_check）
+ブリーフに site_check があるときは、アクセスの記録が無くても、次を使って助言する。根拠は site_check の evidence（"site:..." の形）。
+- ai_bots_blocked_in_robots: 案内ファイル（robots.txt）で断られているAI。意図したものか確かめる案を fix_config で示す。
+- pages_not_in_sitemap: 案内図（サイトマップ）に載っていないページ。載せる案を fix_config で示す。
+- thin_pages: 本文が短いページ。書き直しの案を rewrite_page で示す（優先度は低め）。
+- pages_without_title_or_heading: 見出しやタイトルが無いページ。
+- page_list: サイトにあるページの一覧。ここに無い話題（アクセス、料金、よくある質問など、お客様が知りたいはずの情報）は、
+  存在しないページとして new_page を提案してよい。ただし、事業の種類が分からないときは、断定せず、確かめる形で書く。
+- mode が site_only のときは、アクセスの記録が無い。AIが読みに来た回数や、読めなかった回数を、でっち上げない。
+
+## AIの答え（ai_answers）
+ブリーフに ai_answers があるときは、お客様の質問に、AIがどう答えたかの記録（根拠は "ai:Q1" の形）。
+- これは、Claudeにウェブ検索をさせた結果で、他のAIの答えとは限らない。そう断って書く。
+- site_cited / site_named が偽の質問は、そのサイトがAIの答えに出てこなかったことを示す。原因をでっち上げず、
+  サイトの公開ページ（site_check）の事実と、結び付けられる範囲だけで、直す案を書く。結び付けられなければ、
+  「確かめる必要があります」と書く。
+- 答えの中の他店の名前を、助言に書かない（比較や、他店の評価はしない）。

@@ -13,7 +13,26 @@ def _verdict(drafts, target, kinds=ACTIONS):
     return ""
 
 
+def _site_trace(brief, drafts):
+    c, steps = brief["site_check"], []
+    steps.append({"title": "サイトの公開ページを確かめる", "finding": f"{c['page_list']['count']}ページを読みました。",
+                  "verdict": "", "evidence": c["page_list"]["evidence"]})
+    for b in c["ai_bots_blocked_in_robots"]:
+        steps.append({"title": f"{b['bot']} が断られていないか調べる",
+                      "finding": f"案内ファイル（robots.txt）で、{b['bot']} は全体を断られています。",
+                      "verdict": _verdict(drafts, "/robots.txt"), "evidence": b["evidence"]})
+    for p in c["thin_pages"]:
+        steps.append({"title": f"{p['path']} の内容を確かめる", "finding": f"本文がとても短いページです（{p['words']}語）。",
+                      "verdict": _verdict(drafts, p["path"]), "evidence": p["evidence"]})
+    for p in c["pages_not_in_sitemap"]:
+        steps.append({"title": f"{p['path']} が案内図（サイトマップ）にあるか調べる", "finding": "案内図に載っていないページです。",
+                      "verdict": _verdict(drafts, p["path"]), "evidence": p["evidence"]})
+    return steps
+
+
 def build_trace(brief, drafts):
+    if brief.get("mode") == "site_only":
+        return _site_trace(brief, drafts)
     s, steps = brief["signals"], []
     total_ai = sum(sum(p["ai"].values()) for p in brief["pages"].values())
     steps.append({"title": "全体を数える", "finding": f"{brief['total_requests']:,}件のアクセスのうち、AIがページを読んだのは{total_ai:,}回でした。",
