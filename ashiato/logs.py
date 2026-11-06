@@ -1,4 +1,4 @@
-"""Cloudflare Logpush（NDJSON）と nginx/Apache の combined 形式を、同じ形の行に揃える。
+"""Cloudflare Logpush（NDJSON）と nginx/Apache の combined 形式（行頭にドメイン名が付く形も）を、同じ形の行に揃える。
 
 行: id, ts(UTC ISO), path, query, status, bytes, ua, referer, category
   id        "<ファイル名>:<行番号>"。助言の根拠として、画面とレポートに出す。
@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-NGINX = re.compile(r'^\S+ \S+ \S+ \[(?P<time>[^\]]+)\] "(?P<method>\S+) (?P<uri>\S+) [^"]*" '
+NGINX = re.compile(r'^(?:\S+ )?\S+ \S+ \S+ \[(?P<time>[^\]]+)\] "(?P<method>\S+) (?P<uri>\S+) [^"]*" '
                    r'(?P<status>\d{3}) (?P<bytes>\d+|-) "(?P<ref>[^"]*)" "(?P<ua>[^"]*)"')
 
 

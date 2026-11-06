@@ -25,7 +25,11 @@ def validate(draft, known):
         unknown = [i for i in ev if i not in known]
         if unknown:
             problems.append(f"ブリーフに無い行IDです: {', '.join(map(str, unknown[:3]))}")
-    for field in ("title", "why"):
+    if "howto" in draft and not isinstance(draft["howto"], str):
+        problems.append("howto は文字列にしてください")
+    for field in ("title", "why", "howto"):
+        if field not in draft:
+            continue
         for term in BANNED_TERMS:
             if term in str(draft[field]):
                 problems.append(f"{field} に画面に出せない語があります: {term}")
