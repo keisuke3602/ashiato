@@ -84,9 +84,19 @@ def _signals(agg, site):
 
 
 def build_brief(agg, site, site_name):
+    from .sitecheck import site_check  # sitecheck も brief を使うので、ここで読み込む
     return {"site_name": site_name, "period": agg["period"], "total_requests": agg["total_rows"],
             "site_pages": site["pages"], "robots_txt": site["robots_txt"],
-            "pages": agg["pages"], "bots": agg["bots"], "evidence_times": agg["evidence_times"], "signals": _signals(agg, site)}
+            "pages": agg["pages"], "bots": agg["bots"], "evidence_times": agg["evidence_times"], "signals": _signals(agg, site),
+            "site_check": site_check(site)}
+
+
+def build_site_only_brief(site, site_name):
+    """アクセスログが無いときのブリーフ。サイトの公開ページの事実（site_check）だけを持つ。"""
+    from .sitecheck import site_check
+    return {"mode": "site_only", "site_name": site_name, "period": None, "total_requests": 0,
+            "site_pages": site["pages"], "robots_txt": site["robots_txt"], "pages": {}, "bots": {}, "evidence_times": {},
+            "signals": {}, "site_check": site_check(site)}
 
 
 def known_ids(brief):

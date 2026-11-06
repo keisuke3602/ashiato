@@ -99,6 +99,81 @@ class AppTest(unittest.TestCase):
         self.assertTrue(dr.validate(dict(d, howto="ステータスコードを見る"), {"x:1"}))
         self.assertEqual(dr.validate({k: v for k, v in d.items() if k != "howto"}, {"x:1"}), [])  # 古い返答も有効
 
+    def test_site_only_diagnosis_without_logs(self):
+        import json
+        resp = json.dumps([
+            {"kind": "fix_config", "target": "/robots.txt", "title": "ClaudeBot の断りを確かめる", "why": "案内ファイルで断られています。",
+             "body": "Disallow を消す", "howto": "robots.txt を開き、この行を消す", "priority": "mid", "evidence": ["site:robots.txt:ClaudeBot"]},
+            {"kind": "rewrite_page", "target": "/meals", "title": "お食事を充実させる", "why": "本文が短いです。",
+             "body": "", "priority": "low", "evidence": ["site:page:/meals"]}], ensure_ascii=False)
+
+        class Msg:
+            stop_reason = "end_turn"
+            content = [type("B", (), {"type": "text", "text": resp})()]
+            usage = type("U", (), {"input_tokens": 1, "output_tokens": 1})()
+
+        class Stream:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def get_final_message(self): return Msg()
+
+        class Client:
+            class messages:
+                @staticmethod
+                def stream(**kw):
+                    return Stream()
+
+        site_dir = self.root / "site" / "before"
+        with self.assertRaises(LookupError):  # --live が無いと診断できない
+            app.diagnose_site("", app.Config(site_dir, "雪待荘"))
+        cfg = app.Config(site_dir, "雪待荘", live=True, client=Client)
+        html = app.diagnose_site("", cfg)
+        for needle in ("サイトの公開ページをもとにしています", "アクセスの記録は使っていません", "ClaudeBot の断りを確かめる", "調べた順番"):
+            self.assertIn(needle, html)
+        self.assertNotIn("AIがページを読みに来た回数", html)  # ログの数字は出さない
+        self.assertIn("アクセスの記録が取れない", app.upload_page(cfg))
+        self.assertNotIn("アクセスの記録が取れない", app.upload_page(self.cfg))
+
+    def test_site_diagnosis_with_ai_answers(self):
+        import json
+        site_dir = self.root / "site" / "before"
+        seen = []
+
+        class B:
+            def __init__(self, **kw): self.__dict__.update(kw)
+
+        resp = json.dumps([{"kind": "rewrite_page", "target": "/meals", "title": "お食事を充実させる", "why": "AIの答えに出ていません。",
+                            "body": "", "priority": "low", "evidence": ["ai:Q1", "site:page:/meals"]}], ensure_ascii=False)
+
+        class Client:
+            class messages:
+                @staticmethod
+                def create(**kw):
+                    seen.append(kw)
+                    if "tools" not in kw:
+                        return B(stop_reason="end_turn", content=[B(type="text", text='["q1","q2","q3"]')])
+                    return B(stop_reason="end_turn", content=[B(type="text", text="答え", citations=[B(url="https://other.test/a")])])
+
+                @staticmethod
+                def stream(**kw):
+                    seen.append(kw)
+
+                    class S:
+                        def __enter__(self): return self
+                        def __exit__(self, *a): return False
+                        def get_final_message(self):
+                            return B(stop_reason="end_turn", content=[B(type="text", text=resp)], usage=B(input_tokens=1, output_tokens=1))
+                    return S()
+
+        cfg = app.Config(site_dir, "雪待荘", live=True, client=Client)
+        html = app.diagnose_site(json.dumps({"url": "", "ask_ai": True, "business": "温泉地の旅館"}), cfg)
+        self.assertIn("AIは、お客様の質問に、どう答えるか", html)
+        self.assertIn("Claudeにウェブ検索をさせた結果です", html)
+        self.assertIn("あなたのサイトは、出典に入っていませんでした", html)
+        self.assertIn("お食事を充実させる", html)  # ai:Q1 を根拠にした下書きが検証に通る
+        no_ai = app.diagnose_site(json.dumps({"url": "", "ask_ai": False}), cfg)
+        self.assertNotIn("AIは、お客様の質問に、どう答えるか", no_ai)
+
     def test_report_has_approved_export(self):
         html = app.analyze(self.text, "before.ndjson", self.cfg)
         for needle in ("承認した下書き", "exp-text", "まとめてコピー", "サイトには何も書き込みません"):

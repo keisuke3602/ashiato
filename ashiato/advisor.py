@@ -21,8 +21,9 @@ def build_request(brief):
 def check_against_brief(draft, brief):
     """下書きの種類が、ブリーフの事実と食い違っていないか。問題の一覧を返す（空なら問題なし）。"""
     s, site = brief["signals"], {p["path"] for p in brief["site_pages"]}
+    cands = {c["from"] for c in s.get("redirect_candidates", [])}
     kind, target = draft["kind"], draft["target"]
-    if kind == "redirect" and target not in {c["from"] for c in s["redirect_candidates"]}:
+    if kind == "redirect" and target not in cands:
         return [f"{target} には転送先の候補がありません。転送ではなく new_page にしてください"]
     if kind == "new_page" and target in site:
         return [f"{target} はサイトに既にあります。new_page ではなく rewrite_page にしてください"]
