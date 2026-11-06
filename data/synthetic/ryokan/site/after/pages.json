@@ -1,0 +1,65 @@
+[
+  {
+    "path": "/",
+    "title": "雪待荘",
+    "h1": "雪待荘へようこそ",
+    "words": 420,
+    "in_sitemap": true
+  },
+  {
+    "path": "/rooms",
+    "title": "お部屋",
+    "h1": "お部屋のご案内",
+    "words": 610,
+    "in_sitemap": true
+  },
+  {
+    "path": "/plan/winter",
+    "title": "冬の宿泊プラン",
+    "h1": "冬の宿泊プラン",
+    "words": 540,
+    "in_sitemap": true
+  },
+  {
+    "path": "/plan/summer",
+    "title": "夏の宿泊プラン",
+    "h1": "夏の宿泊プラン",
+    "words": 500,
+    "in_sitemap": true
+  },
+  {
+    "path": "/onsen",
+    "title": "温泉",
+    "h1": "かけ流しの温泉",
+    "words": 480,
+    "in_sitemap": true
+  },
+  {
+    "path": "/meals",
+    "title": "お食事",
+    "h1": "お食事",
+    "words": 45,
+    "in_sitemap": true
+  },
+  {
+    "path": "/blog/matsuri-2026",
+    "title": "町の雪まつり2026",
+    "h1": "町の雪まつり2026",
+    "words": 1300,
+    "in_sitemap": true
+  },
+  {
+    "path": "/contact",
+    "title": "お問い合わせ",
+    "h1": "お問い合わせ",
+    "words": 150,
+    "in_sitemap": true
+  },
+  {
+    "path": "/access",
+    "title": "アクセス",
+    "h1": "アクセス",
+    "words": 380,
+    "in_sitemap": true
+  }
+]
