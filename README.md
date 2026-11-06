@@ -88,7 +88,8 @@ python3 scripts/run_advisor.py data/synthetic/ryokan/before.ndjson data/syntheti
   ブリーフと指示文だけを渡し、検証に落ちた下書きは理由を付けて出し直させます。API キーは環境変数から読み、
   `--run` を付けないと API を呼びません。同じ下書きを Managed Agents 経由でも取れます
   (`scripts/run_advisor_managed.py`。上限額つきの Session で、ツールは全部オフ)。Agent SDK は使っていません。
-- `examples/` の下書きは、Claude Code の中の別のClaudeに、ブリーフと指示文だけを渡して書かせた実際の出力です。
+- `examples/ryokan/` の下書きは、Managed Agents 経由で Claude(`claude-opus-5-5`)に、ブリーフと指示文だけを渡して書かせた実際の出力です。
+  `examples/readnote/` は、Claude Code の中の別のClaudeに同じ条件で書かせた出力です。
 - 画面の「見本」の下書きは、Claudeではなく決まった規則で作ったものです(Claudeの返答を渡さないと出ます)。
 - 実サイトでの確認は、集計の傾向を見たのみです。このリポジトリには、実際のログも、実際の集計値も入っていません。
 - 設計とデモの台本は `docs/` にあります。
