@@ -78,13 +78,16 @@ python3 scripts/run_advisor.py data/synthetic/ryokan/before.ndjson data/syntheti
 - 目2(サイトの公開ページ)と目3(AIの答え)は、実装し、偽のクライアントを使ったテストで確認しています。
   実際の API での動作確認は、README の更新時点では、まだ行っていません。起動時に `--live` を付けると、画面に診断の欄が出ます
   (環境変数 ANTHROPIC_API_KEY が要ります。料金がかかります)。
-- Managed Agents の設定ファイル(`agents/`、`environments/`)と、実行スクリプト(`scripts/run_advisor_managed.py`)は書きましたが、まだ実行していません。
+- Managed Agents の設定ファイル(`agents/`、`environments/`)と、実行スクリプト(`scripts/run_advisor_managed.py`)は、
+  合成データ(旅館)のブリーフで1回、実際に実行しました(Agent・Environment・Session を使用。生ログは送っていません)。
+  下書きは13件が、検証に1回で通りました。実サイトでは実行していません。
 
 - 動くもの: ログの読み込み(Cloudflare Logpush、nginx/Apache)、AIの種類の判別、ページ別の集計、ブリーフの作成、
   下書きの検証、日本語の画面(全体、ページごとの様子、調べた順番、次にやること、手を付けなくてよいこと、前後比較)。
 - Claude API(`claude-opus-5-5`)を呼び出して下書きを取る部分があります(`scripts/run_advisor.py`)。
   ブリーフと指示文だけを渡し、検証に落ちた下書きは理由を付けて出し直させます。API キーは環境変数から読み、
-  `--run` を付けないと API を呼びません。Managed Agents / Agent SDK は使っていません(API の呼び出しです)。
+  `--run` を付けないと API を呼びません。同じ下書きを Managed Agents 経由でも取れます
+  (`scripts/run_advisor_managed.py`。上限額つきの Session で、ツールは全部オフ)。Agent SDK は使っていません。
 - `examples/` の下書きは、Claude Code の中の別のClaudeに、ブリーフと指示文だけを渡して書かせた実際の出力です。
 - 画面の「見本」の下書きは、Claudeではなく決まった規則で作ったものです(Claudeの返答を渡さないと出ます)。
 - 実サイトでの確認は、集計の傾向を見たのみです。このリポジトリには、実際のログも、実際の集計値も入っていません。
