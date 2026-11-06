@@ -15,6 +15,8 @@ data/real/
 .env
 .env.*
 !.env.example
+.keys
+.keys/
 
 # Local Claude Code settings
 .claude/settings.local.json
