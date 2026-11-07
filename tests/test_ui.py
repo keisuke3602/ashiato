@@ -71,6 +71,7 @@ class UiTest(unittest.TestCase):
         self.assertIn("/access", lost)
         self.assertIn("新しく作る候補", lost)
         self.assertIn("転送で足りる（/plan/winter）", lost)  # /plans/winter は、既存の /plan/winter に近い
+        self.assertIn("お客様の質問に答えるために来たAI（ChatGPT-User）", lost)  # /access を、質問に応じて取りに来たAIが探した
         self.assertIn("/blog/matsuri-2026", dash.split("AIがよく読んでいるページ")[1])
         self.assertIn("調べた順番", app.render_page(cfg, "trace"))
         actions = app.render_page(cfg, "actions")
