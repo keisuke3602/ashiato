@@ -83,7 +83,7 @@ python3 scripts/run_advisor.py data/synthetic/ryokan/before.ndjson data/syntheti
 - Managed Agents の設定ファイル(`agents/`、`environments/`)と、実行スクリプト(`scripts/run_advisor_managed.py`)は、
   合成データ(旅館)のブリーフで1回、実際に実行しました(Agent・Environment・Session を使用。生ログは送っていません)。
   下書きは13件が、検証に1回で通りました。ただし、この実行は、指示文を「需要にもとづく提案」で変える前のものです。
-  そのあと指示文を変えたので、クラウド上の Agent は、古い指示文のままです(更新していません)。実サイトでは実行していません。
+  そのあと指示文を変えたので、クラウド上の Agent の指示文を、現行版に更新しました(`ant apply`)。更新後の指示文では、まだ実行していません。実サイトでは実行していません。
 - 画面の例(`examples/ryokan/`)は、新しい指示文で、Claude API から取った下書き9件です(検証: 有効9件、拒否0件)。
   合成データに仕込んだ7つの問題(`docs/design.md`)のすべてに対応していました(7つ目の偽装アクセスは「無視してよい」、
   「手を付けない」は1枚にまとまっている)。ほかに、よく読まれているページの「続きの話題」の提案が2件あります。
