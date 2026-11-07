@@ -55,14 +55,24 @@ class DocsClaimsTest(unittest.TestCase):
         self.assertEqual(set(self.missing(altered)), {self.numbers()[0], self.numbers()[4]})
 
     def test_saved_response_covers_the_planted_findings(self):
-        got = {(d["kind"], d["target"]) for d in self.response if d["kind"] in ACTIONS}
-        self.assertEqual(got, PLANTED_ACTIONS)  # 仕込みの5つ（1,2,5,6 と、余計な仕事が無いこと）
-        healthy = {d["target"] for d in self.response if d["kind"] == "leave_alone"}
-        self.assertIn("/blog/matsuri-2026", healthy)  # 仕込み3
+        main = {(d["kind"], d["target"]) for d in self.response if d["kind"] in ACTIONS and d.get("demand_basis") != "reading"}
+        self.assertEqual(main, PLANTED_ACTIONS)  # 仕込みの1,2,5,6。ほかに、記録に根拠のない作業が無いこと
+        healthy = " ".join(d["why"] for d in self.response if d["kind"] == "leave_alone")
+        self.assertIn("町の雪まつり2026", healthy)  # 仕込み3
         ignored = " ".join(d["title"] + d["why"] for d in self.response if d["kind"] == "ignore")
         self.assertIn("管理", ignored)  # 仕込み4
         self.assertIn("名乗", ignored)  # 仕込み7
         self.assertEqual(sum(1 for d in self.response if d["kind"] == "ignore"), 2)
+
+    def test_demand_proposals_are_tied_to_read_pages_and_capped(self):
+        extra = [d for d in self.response if d.get("demand_basis") == "reading"]
+        self.assertLessEqual(len(extra), 2)  # 続きの話題の提案は、最大2件
+        reading = {r["path"]: r for r in self.brief["demand"]["reading"]}
+        for d in extra:
+            self.assertEqual(d["kind"], "new_page")
+            self.assertTrue(set(d["based_on"]) <= set(reading))
+            self.assertTrue(set(d["evidence"]) <= {i for b in d["based_on"] for i in reading[b]["evidence"]})
+            self.assertIn("探した記録があるわけではありません", d["why"])  # 提案であることを、書いている
 
     def test_readme_count_matches_the_saved_response(self):
         self.assertIn(f"{len(self.response)}件", self.readme)

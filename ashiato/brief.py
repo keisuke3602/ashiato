@@ -3,6 +3,7 @@
 ブリーフ = 期間・ページ別/ボット別の集計 + 事実の目印（signals）。signals は事実の抜き出しだけで、
 「何を書くか・無視するか」の判断は Claude がする。根拠の行IDは、ブリーフに入っているものだけが使える。
 """
+import re
 import json
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -83,12 +84,41 @@ def _signals(agg, site):
             "healthy_pages": healthy, "noise": noise, "robots_blocks_all_bots": "*" in blocked}
 
 
+DEMAND_LIMIT = 6
+
+
+def _demand(agg, signals, site):
+    """需要の目安。AIが「あるはず」と想定して取りに来たのに無かったアドレス（404）と、AIがよく読んでいるページ（200）。
+    どちらも、検証済みのAIの行だけ。事実を並べるだけで、何を作るかの判断は Claude がする。"""
+    site_paths = {p["path"] for p in site["pages"]}
+    guessed = {}
+    for e in signals["ai_errors"]:
+        if e["status"] == 404 and not e["in_site"]:
+            g = guessed.setdefault(e["path"], {"path": e["path"], "count": 0, "bots": set(), "evidence": []})
+            g["count"] += e["count"]
+            g["bots"].update(e["bots"])
+            g["evidence"] += [i for i in e["evidence"] if i not in g["evidence"]]
+    guessed_missing = [dict(g, bots=sorted(g["bots"]), words=[w for w in re.split(r"[/_.\-]+", g["path"].lower()) if w])  # URLの語（話題の手がかり）
+                       for g in sorted(guessed.values(), key=lambda g: -g["count"])][:DEMAND_LIMIT]
+    title = {p["path"]: p.get("title", "") for p in site["pages"]}
+    reading = []
+    for path, p in agg["pages"].items():
+        reads = sum(n for st, n in p["ai"].items() if st[0] in "23")
+        if reads and path in site_paths:
+            ev = p["evidence"]
+            reading.append({"path": path, "title": title.get(path, ""), "ai_reads": reads, "ai_answer_visitors": p["ai_answer_visitors"],
+                            "evidence": list(dict.fromkeys(ev.get("200", []) + ev.get("ai_answer_visitor", [])))})
+    reading.sort(key=lambda r: -r["ai_reads"])
+    return {"guessed_missing": guessed_missing, "reading": reading[:DEMAND_LIMIT]}
+
+
 def build_brief(agg, site, site_name):
     from .sitecheck import site_check  # sitecheck も brief を使うので、ここで読み込む
+    signals = _signals(agg, site)
     return {"site_name": site_name, "period": agg["period"], "total_requests": agg["total_rows"],
             "site_pages": site["pages"], "robots_txt": site["robots_txt"],
-            "pages": agg["pages"], "bots": agg["bots"], "evidence_times": agg["evidence_times"], "signals": _signals(agg, site),
-            "site_check": site_check(site)}
+            "pages": agg["pages"], "bots": agg["bots"], "evidence_times": agg["evidence_times"], "signals": signals,
+            "demand": _demand(agg, signals, site), "site_check": site_check(site)}
 
 
 def build_site_only_brief(site, site_name):

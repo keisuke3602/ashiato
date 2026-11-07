@@ -25,6 +25,8 @@ JSON の配列だけを返す。各要素は次の項目を持つ。
   画面の名前や場所を断定せず、「お使いのサーバーや管理画面で」と書く。手を付けない・無視してよいものは空文字。
 - priority: high / mid / low
 - evidence: 根拠の行IDの配列
+- demand_basis（任意）: 需要にもとづく new_page のときだけ。"guessed"（AIが探していたアドレス）/ "reading"（よく読まれているページの続きの話題）
+- based_on（任意）: demand_basis が "reading" のとき、元になったページのパスの配列（例: ["/blog/matsuri-2026"]）
 
 ## 判断の目安（ブリーフの signals を見る）
 - ai_errors の 404 で、サイトにも無いパス → 新しいページ。redirect_candidates に転送先の候補があれば、
@@ -33,6 +35,21 @@ JSON の配列だけを返す。各要素は次の項目を持つ。
 - robots_blocks → 設定ミスの可能性。拒否している行を直す案を示す。
 - pages_ai_never_fetched で内容が薄いページ → 書き直し（優先度は低め）。
 - healthy_pages → leave_alone。noise → ignore。unverified_ai_claims → ignore。
+
+## 需要（demand）
+ブリーフに demand があるときは、AIの要求に載っていたURLから、何が求められているかを読む。URLそのものが、AIが「あるはず」と考えた話題の手がかり。
+- guessed_missing: AIが「あるはず」と想定して取りに来たのに、無かったアドレス（回数、来たAIの名前、URLの語 words）。
+  回数が多いほど、強い需要。words から、何の話題かを読み取る（例: plans, winter → 冬の宿泊プラン）。new_page にして、demand_basis は "guessed"。
+  近い既存ページがあるもの（redirect_candidates）は、新規作成ではなく転送（redirect）にする。
+- reading: AIがよく読んでいる、サイトにあるページ（読めた回数、AIの回答から来たお客様の数）。
+  この話題の続き（関連するが、まだ無いページ）を、new_page として、最大2件まで提案してよい。条件は次のとおり。
+  - demand_basis は "reading"。based_on に、元のページのパスを入れる。evidence は、その元ページの evidence から選ぶ。
+  - トップページ（/）のように、話題が1つに決まらないページは、元にしない。
+  - 提案する target（新しいページのパス）は、サイトに既にあるパスと重ならない。
+  - 本文は、元のページの話題から言えることに限る。サイトに無い事実（料金、設備、住所、日付）は作らず、【】の穴埋めにする。
+  - why に、元のページが何回読まれたか（ブリーフの数字）と、「これは続きの話題の提案で、AIがこのページを探した記録があるわけではない」と書く。
+    優先度は、guessed より低くする。
+- アクセスの記録に根拠の無いページの提案（思いつきの new_page）は、書かない。保存できない。
 
 ## サイトの公開ページの事実（site_check）
 ブリーフに site_check があるときは、アクセスの記録が無くても、次を使って助言する。根拠は site_check の evidence（"site:..." の形）。
