@@ -50,7 +50,7 @@ python3 scripts/gen_synthetic.py            # 合成データA(旅館)を data/s
 python3 scripts/gen_synthetic_b.py          # 合成データB(読書ノートのサービス)を data/synthetic/readnote/ に作る
 python3 scripts/serve.py data/synthetic/ryokan/site/before 雪待荘 \
   --response examples/ryokan/claude_response.json
-pip install anthropic                       # API で下書きを取るときだけ必要（API キーは環境変数 ANTHROPIC_API_KEY）
+pip install anthropic                       # API で下書きを取るときだけ必要（API キーは環境変数 ANTHROPIC_API_KEY。`.env.example` を `.env` にコピーして入れ、`set -a; source .env; set +a` で読み込む）
 python3 scripts/run_advisor.py data/synthetic/ryokan/before.ndjson data/synthetic/ryokan/site/before 雪待荘 out/ryokan_response.json --run
 ```
 
