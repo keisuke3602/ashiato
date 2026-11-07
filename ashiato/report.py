@@ -1,8 +1,13 @@
 """日本語のレポート画面（HTML 1枚）。承認・修正・却下はブラウザ内の印だけで、サイトには何も書き込まない。"""
+import hashlib
+import json
+import re
 from datetime import datetime, timedelta
 from html import escape
 
+from . import charts
 from .pages_table import LABELS, page_rows
+from .sitecheck import THIN_WORDS
 
 KIND_LABEL = {"new_page": "ページを作る", "rewrite_page": "書き直す", "redirect": "転送を足す",
               "fix_config": "設定を見直す", "leave_alone": "手を付けない", "ignore": "無視してよい"}
@@ -43,7 +48,7 @@ function refresh(){var box=document.getElementById('exp-text'),n=document.getEle
   box.value=out.join('\n\n----------\n\n');n.textContent=c}
 var cp=document.getElementById('exp-copy');if(cp)cp.addEventListener('click',function(){var box=document.getElementById('exp-text');box.select();try{navigator.clipboard.writeText(box.value)}catch(e){document.execCommand('copy')}cp.textContent='コピーしました'});
 document.querySelectorAll('.card[data-id]').forEach(function(card){
-  var key='ashiato:'+card.dataset.id, buttons=card.querySelectorAll('button');
+  var key='ashiato:'+(typeof RID==='undefined'?'':RID+':')+card.dataset.id, buttons=card.querySelectorAll('button');
   function mark(v){buttons.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.v===v)});card.classList.toggle('done-reject',v==='reject');refresh()}
   try{mark(localStorage.getItem(key)||'')}catch(e){}
   buttons.forEach(function(b){b.addEventListener('click',function(){mark(b.dataset.v);try{localStorage.setItem(key,b.dataset.v)}catch(e){}})});
@@ -180,3 +185,183 @@ def render_report(brief, drafts, compare=None, trace=None):
 {_healthy(healthy)}
 {''.join(_card(100 + i, d, times, actions=False) for i, d in enumerate(ignored))}
 </main><script>{JS}</script></body></html>"""
+
+
+# ---- 複数ページの画面（ローカルサーバー用）。1枚のレポート（render_report）は、そのまま残す ----
+
+APP_CSS = """
+header.top{background:var(--card);border-bottom:1px solid var(--line)}
+.bar{max-width:980px;margin:0 auto;padding:10px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.brand{font-weight:700;color:var(--ink);text-decoration:none;font-size:1.1rem}.site{color:var(--sub);font-size:.9rem}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav.tabs a{color:var(--sub);text-decoration:none;padding:6px 12px;border-radius:8px;font-size:.92rem}
+nav.tabs a:hover{color:var(--ink)}nav.tabs a[aria-current=page]{background:var(--accent);color:#fff}
+.badge{display:inline-block;min-width:1.3em;margin-left:6px;padding:0 6px;border-radius:99px;background:var(--ok);color:#fff;font-size:.75rem;text-align:center}.badge:empty{display:none}
+main.wide{max-width:980px}
+.chart{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.chart h3{margin:0 0 2px;font-size:1rem}.chart p.sub{margin:0 0 8px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.cta{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tiles+.cta{margin-top:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.grid2 table{font-size:.92rem}
+a.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;border-radius:8px;padding:8px 16px}
+"""
+
+NAV = [("dashboard", "ダッシュボード"), ("trace", "調べた順番"), ("actions", "次にやること"), ("changes", "直したあとの変化")]
+BADGE_JS = ("(function(){var n=document.getElementById('nav-n');if(!n)return;try{var c=0,p='ashiato:'+RID+':';"
+            "for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k.indexOf(p)===0&&localStorage.getItem(k)==='approve')c++}"
+            "n.textContent=c||''}catch(e){}})();")
+
+
+def make_view(brief, drafts, trace, cmp=None, agg=None, agg_after=None):
+    """画面に出すものを、ひとまとめにする（メモリ上だけ）。rid は、下書きが変わったら変わる（承認の印を、前の結果と混ぜない）。"""
+    rid = hashlib.sha1(json.dumps(drafts, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:8]
+    return {"brief": brief, "drafts": drafts, "trace": trace, "cmp": cmp, "agg": agg, "agg_after": agg_after, "rid": rid}
+
+
+def _layout(view, active, body, scripts=""):
+    tabs = ""
+    for key, text in NAV:
+        cur = ' aria-current="page"' if key == active else ""
+        badge = '<span class="badge" id="nav-n"></span>' if key == "actions" else ""
+        tabs += f'<a href="/{key}"{cur}>{text}{badge}</a>'
+    return (f'<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            f'<title>足跡 {escape(view["brief"]["site_name"])}</title><style>{CSS}{APP_CSS}</style></head><body>'
+            f'<header class="top"><div class="bar"><a class="brand" href="/">足跡</a><span class="site">{escape(view["brief"]["site_name"])}</span>'
+            f'<nav class="tabs">{tabs}<a href="/">新しく調べる</a></nav></div></header><main class="wide">{body}</main>'
+            f'<script>var RID={json.dumps(view["rid"])};{BADGE_JS}</script>{scripts}</body></html>')
+
+
+def _acts(drafts):
+    return sorted([d for d in drafts if d["kind"] not in ("leave_alone", "ignore")], key=lambda d: PRIORITY_ORDER[d["priority"]])
+
+
+def _bot_rows(brief):
+    tot = {}
+    for page in brief["pages"].values():
+        for bot, counts in page["ai_by_bot"].items():
+            ok = sum(n for st, n in counts.items() if st[0] in "23")
+            bad = sum(n for st, n in counts.items() if st[0] in "45")
+            a, b = tot.get(bot, (0, 0))
+            tot[bot] = (a + ok, b + bad)
+    return sorted(((k, a, b) for k, (a, b) in tot.items()), key=lambda r: -(r[1] + r[2]))[:8]
+
+
+def _chart_card(title, note, svg):
+    return f'<div class="chart"><h3>{escape(title)}</h3><p class="sub">{escape(note)}</p>{svg}</div>'
+
+
+def _demand(brief, limit=6):
+    """どんなページが求められているか。AIが探したのに無かったページと、AIがよく読んでいるページ。ブリーフの事実だけから作る（判断はしない）。"""
+    sig = brief.get("signals", {})
+    redirects = {r["from"]: r["to"] for r in sig.get("redirect_candidates", [])}
+    missing = {}
+    for e in sig.get("ai_errors", []):
+        if e["status"] == 404 and not e["in_site"]:
+            m = missing.setdefault(e["path"], {"count": 0, "bots": set()})
+            m["count"] += e["count"]
+            m["bots"].update(e["bots"])
+    lost = sorted(((path, m["count"], sorted(m["bots"])) for path, m in missing.items()), key=lambda r: -r[1])[:limit]
+    read = sorted(((path, sum(p["ai"].get(st, 0) for st in p["ai"] if st[0] in "23"), p["ai_answer_visitors"])
+                   for path, p in brief["pages"].items()), key=lambda r: -r[1])
+    read = [r for r in read if r[1] > 0][:limit]
+    return lost, read, redirects
+
+
+def _demand_panel(brief):
+    lost, read, redirects = _demand(brief)
+    if not lost and not read:
+        return ""
+    def lost_row(path, n, bots):
+        hint = f'<span class="st st3">転送で足りる（{escape(redirects[path])}）</span>' if path in redirects else '<span class="st st0">新しく作る候補</span>'
+        return f"<tr><td>{escape(path)}</td><td>{n:,}</td><td>{hint}</td></tr>"
+    left = ("<div class=\"chart\"><h3>AIが探したのに、無かったページ</h3><p class=\"sub\">AIが、あると思って取りに来て、見つからなかったアドレスです。回数が多いほど、求められている目安です。</p>"
+            "<table><tr><th>アドレス</th><th>探した回数</th><th>見立て</th></tr>" + "".join(lost_row(*r) for r in lost) + "</table></div>") if lost else ""
+    right = ("<div class=\"chart\"><h3>AIがよく読んでいるページ</h3><p class=\"sub\">いま求められている話題の目安です。ここに近い話題が、次のページの手がかりになります。</p>"
+             "<table><tr><th>ページ</th><th>AIが読めた回数</th><th>AIの回答から来たお客様</th></tr>"
+             + "".join(f"<tr><td>{escape(path)}</td><td>{n:,}</td><td>{v:,}</td></tr>" for path, n, v in read) + "</table></div>") if read else ""
+    return ('<h2>どんなページが求められているか</h2><div class="grid2">' + left + right + '</div>'
+            '<p class="sub">AIが取りに来た回数からの目安です。AIが回答に使ったかどうかまでは、アクセスの記録からは分かりません。</p>')
+
+
+def page_dashboard(view):
+    brief, agg = view["brief"], view["agg"]
+    site_only = brief.get("mode") == "site_only"
+    p = brief["period"] or {"from": "", "to": ""}
+    sub = ("サイトの公開ページをもとにしています（アクセスの記録は使っていません）。" if site_only
+           else escape(p["from"]) + " 〜 " + escape(p["to"]) + " のアクセスをもとにしています。") + "承認するまで、サイトには何も反映されません。"
+    note = ('<p class="sub">下書きはClaudeが書きました。公開する前に、必ず内容を確認してください。</p>'
+            if any(d.get("source") == "claude" for d in view["drafts"]) else "")
+    tiles = "".join(f'<div class="tile {c}"><b>{n:,}</b><span>{escape(t)}</span></div>' for t, n, c in (_site_tiles(brief) if site_only else _tiles(brief)))
+    charts_html = ""
+    if not site_only and agg and agg.get("daily"):
+        series = charts.day_series(agg["daily"], agg["period"]["from"], agg["period"]["to"])
+        charts_html += _chart_card("日ごとの、AIの動き", "AIがページを読みに来た回数を、1日ごとに数えました。緑は読めた回数、橙は読めなかった回数です。",
+                                   charts.stacked_days(series, "日ごとのAIの読み取り回数（読めた・読めなかった）"))
+        bots = _bot_rows(brief)
+        if bots:
+            charts_html += _chart_card("どのAIが来ているか", "AIの名前ごとの回数です（本物と確かめられたものだけ）。",
+                                       charts.hbars(bots, "AIの名前ごとの読み取り回数"))
+        charts_html += _chart_card("AIの回答から来たお客様（1日ごと）", "AIの回答を見て、サイトに来たお客様の数です。",
+                                   charts.line_days(series, "answer_visitors", "AIの回答から来たお客様の数（日ごと）"))
+    if site_only and brief.get("site_pages"):
+        rows = [(pg["path"], pg["words"], 0) if pg["words"] >= THIN_WORDS else (pg["path"], 0, pg["words"])
+                for pg in sorted(brief["site_pages"], key=lambda x: -x["words"])[:12]]
+        charts_html += _chart_card("ページごとの、本文の長さ", f"読み取れた語数です。橙は、短いページ（{THIN_WORDS}語未満）です。日本語は、文字数の半分も見て数えています。",
+                                   charts.hbars(rows, "ページごとの本文の語数。橙は短いページ"))
+    n = len(_acts(view["drafts"]))
+    cta = (f'<div class="card cta"><div><b>次にやること（{n}件）</b><div class="sub">Claudeが、根拠つきの下書きを用意しました。</div></div>'
+           f'<a class="btn" href="/actions">見る</a></div>')
+    demand = "" if site_only else _demand_panel(brief)
+    body = (f'<h1>{escape(brief["site_name"])} のAI足跡</h1><div class="sub">{sub}</div>{note}<div class="tiles">{tiles}</div>{cta}{charts_html}{demand}'
+            f'{_pages(page_rows(brief)) if brief.get("site_pages") and not site_only else ""}{_ai_answers(brief.get("ai_answers"))}')
+    return _layout(view, "dashboard", body)
+
+
+def page_trace(view):
+    times = view["brief"].get("evidence_times", {})
+    body = _trace(view["trace"], times) + '<div class="card cta"><span>調べた結果から、次にやることを用意しました。</span><a class="btn" href="/actions">次にやること</a></div>'
+    return _layout(view, "trace", body)
+
+
+def page_actions(view):
+    drafts, times = view["drafts"], view["brief"].get("evidence_times", {})
+    acts = _acts(drafts)
+    healthy = [d for d in drafts if d["kind"] == "leave_alone"]
+    ignored = [d for d in drafts if d["kind"] == "ignore"]
+    body = (f'<h1>次にやること（{len(acts)}件）</h1><p class="sub">承認・修正・却下は、この画面の中の印だけです。サイトには何も書き込みません。</p>'
+            + (''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>')
+            + '<div class="exp"><h2>承認した下書き（<span id="exp-n">0</span>件）</h2>'
+              '<p class="sub">承認したものだけが、ここに集まります。コピーして、ご自分でサイトに反映してください。足跡は、サイトには何も書き込みません。</p>'
+              '<textarea id="exp-text" readonly placeholder="「承認」を押すと、ここに下書きが入ります"></textarea><br><button id="exp-copy">まとめてコピー</button></div>'
+            + '<h2>手を付けなくてよいこと</h2>' + _healthy(healthy)
+            + ''.join(_card(100 + i, d, times, actions=False) for i, d in enumerate(ignored)))
+    return _layout(view, "actions", body, scripts=f"<script>{JS}</script>")
+
+
+def page_changes(view, after_block=""):
+    brief, cmp = view["brief"], view["cmp"]
+    head = '<h1>直したあとの変化</h1>'
+    if brief.get("mode") == "site_only":
+        return _layout(view, "changes", head + '<p class="sub">アクセスの記録があるときに、直す前と直したあとを比べられます。いまは、サイトの公開ページだけを調べています。</p>')
+    if not cmp:
+        return _layout(view, "changes", head + '<p class="sub">ページを直したあとのアクセス記録を入れると、直す前と、グラフで比べられます。</p>' + after_block)
+    agg, after = view["agg"], view["agg_after"]
+    out = head + f'<p class="sub">直す前（{cmp["days"]["before"]}日分）と、直したあと（{cmp["days"]["after"]}日分）を、1日あたりで比べています。</p>'
+    if agg and after and agg.get("daily") is not None and after.get("daily") is not None:
+        b = charts.day_series(agg["daily"], agg["period"]["from"], agg["period"]["to"])
+        a = charts.day_series(after["daily"], after["period"]["from"], after["period"]["to"])
+        out += _chart_card("日ごとの、AIの動き（直す前から、直したあとまで）", "点線のところで、ページを直しました。緑は読めた回数、橙は読めなかった回数です。",
+                           charts.stacked_days(b + a, "日ごとのAIの読み取り回数。直す前と直したあと", split_after=len(b) - 1, split_text="この間に直した"))
+    out += ('<div class="grid3">'
+            + f'<div class="chart">{charts.before_after("AIが読めなかった回数（1日）", cmp["failed_per_day"]["before"], cmp["failed_per_day"]["after"])}</div>'
+            + f'<div class="chart">{charts.before_after("AIが読めた回数（1日）", cmp["ok_per_day"]["before"], cmp["ok_per_day"]["after"])}</div>'
+            + f'<div class="chart">{charts.before_after("AIの回答から来たお客様（1日）", cmp["ai_answer_visitors_per_day"]["before"], cmp["ai_answer_visitors_per_day"]["after"])}</div></div>')
+    table = _compare(cmp).replace("<h2>直したあとの変化</h2>", "<h2>数字で見る</h2>")
+    table = re.sub(r'<p class="sub">直す前（.*?</p>', "", table, count=1)  # 同じ説明が、ページの上にある
+    out += table
+    return _layout(view, "changes", out)
+
+
+PAGES = {"dashboard": page_dashboard, "trace": page_trace, "actions": page_actions, "changes": page_changes}

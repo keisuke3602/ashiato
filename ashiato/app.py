@@ -44,8 +44,8 @@ details{margin-top:28px;color:var(--sub);font-size:.92rem}
 </main><script>
 var drop=document.getElementById('drop'),input=document.getElementById('file'),busy=document.getElementById('busy');
 function send(f){if(!f)return;drop.style.display='none';busy.style.display='block';
- fetch('/analyze',{method:'POST',headers:{'X-Ashiato':'1','X-Filename':encodeURIComponent(f.name)},body:f}).then(function(r){return r.text()})
- .then(function(h){document.open();document.write(h);document.close()}).catch(function(){busy.textContent='うまく読み込めませんでした。ファイルを確かめて、もう一度お試しください。'})}
+ fetch('/analyze',{method:'POST',headers:{'X-Ashiato':'1','X-Filename':encodeURIComponent(f.name)},body:f}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
+ .then(function(a){if(a[0]){location.href='/dashboard'}else{busy.textContent='うまく読み込めませんでした。ファイルを確かめて、もう一度お試しください。'}}).catch(function(){busy.textContent='うまく読み込めませんでした。ファイルを確かめて、もう一度お試しください。'})}
 input.addEventListener('change',function(){send(input.files[0])});
 ['dragenter','dragover'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('over')})});
 ['dragleave','drop'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove('over')})});
@@ -64,7 +64,7 @@ background:var(--card);padding:28px 16px;text-align:center;cursor:pointer;color:
 (function(){var z=document.getElementById('after'),i=document.getElementById('afterfile');
 function go(f){if(!f)return;z.querySelector('b').textContent='前後を比べています…';
  fetch('/compare',{method:'POST',headers:{'X-Ashiato':'1','X-Filename':encodeURIComponent(f.name)},body:f}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
- .then(function(a){if(a[0]){document.open();document.write(a[1]);document.close()}else{z.querySelector('b').textContent=a[1]}})
+ .then(function(a){if(a[0]){location.href='/changes'}else{z.querySelector('b').textContent=a[1]}})
  .catch(function(){z.querySelector('b').textContent='うまく読み込めませんでした。もう一度お試しください。'})}
 i.addEventListener('change',function(){go(i.files[0])});
 ['dragenter','dragover'].forEach(function(e){z.addEventListener(e,function(v){v.preventDefault();z.classList.add('over')})});
@@ -89,7 +89,7 @@ SITE_BLOCK = """<div id="siteform" style="margin-top:36px;padding-top:24px;borde
 function go(url){busy.textContent='サイトのページを読んで、Claudeが原因を考えています。数分かかります…';busy.style.display='block';document.getElementById('siteform').style.display='none';document.getElementById('drop').style.display='none';
  var body=JSON.stringify({url:url,ask_ai:document.getElementById('askai').checked,business:document.getElementById('biz').value});
  fetch('/site',{method:'POST',headers:{'X-Ashiato':'1'},body:body}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
- .then(function(a){if(a[0]){document.open();document.write(a[1]);document.close()}else{busy.textContent=a[1]}}).catch(function(){busy.textContent='うまく読み込めませんでした。'})}
+ .then(function(a){if(a[0]){location.href='/dashboard'}else{busy.textContent=a[1]}}).catch(function(){busy.textContent='うまく読み込めませんでした。'})}
 document.getElementById('sitego').addEventListener('click',function(){if(u.value.trim())go(u.value.trim())});
 document.getElementById('sitedemo').addEventListener('click',function(){go('')});})();
 </script>"""
@@ -111,6 +111,7 @@ class Config:
         self.response_text = Path(response_path).read_text(encoding="utf-8") if response_path else None
         self.after = after  # (ログのパス, サイト情報のフォルダ) または None（起動時に固定の比較先を渡す、デモ用）
         self.last = None  # 直前にアップロードされたログの (集計, ブリーフ, 下書き)。ディスクには書かない
+        self.view = None  # 画面に出すもの（複数ページ）。メモリ上だけ。report.make_view の結果
 
 
 def analyze(text, filename, cfg):
@@ -128,11 +129,14 @@ def analyze(text, filename, cfg):
     else:
         drafts = sample.sample_drafts(brief)
     cfg.last = (agg, brief, drafts)
-    cmp = None
+    cmp, agg_after = None, None
     if cfg.after:
         after_path = Path(cfg.after[0])
-        cmp = compare(agg, aggregate(logs.parse_text(after_path.read_text(encoding="utf-8"), after_path.name)))
-    html = report.render_report(brief, drafts, cmp, build_trace(brief, drafts))
+        agg_after = aggregate(logs.parse_text(after_path.read_text(encoding="utf-8"), after_path.name))
+        cmp = compare(agg, agg_after)
+    trace = build_trace(brief, drafts)
+    cfg.view = report.make_view(brief, drafts, trace, cmp, agg, agg_after)
+    html = report.render_report(brief, drafts, cmp, trace)
     return html if cmp else html.replace("</body>", AFTER_BLOCK + "</body>", 1)
 
 
@@ -155,7 +159,9 @@ def diagnose_site(body, cfg):
         brief["ai_answers"] = ask_ai.check_ai_answers(client, cfg.site_name, domain, str(opts.get("business", "")).strip())
     _text, drafts, _rejected, _in, _out = llm.advise(brief, cfg.client)
     cfg.last = None  # 前後の比較は、アクセスの記録があるときだけ
-    return report.render_report(brief, drafts, None, build_trace(brief, drafts))
+    trace = build_trace(brief, drafts)
+    cfg.view = report.make_view(brief, drafts, trace)
+    return report.render_report(brief, drafts, None, trace)
 
 
 def compare_after(text, filename, cfg):
@@ -166,8 +172,20 @@ def compare_after(text, filename, cfg):
     if not rows:
         raise ValueError("読めるアクセス記録がありませんでした")
     agg, brief, drafts = cfg.last
-    cmp = compare(agg, aggregate(rows))
-    return report.render_report(brief, drafts, cmp, build_trace(brief, drafts))
+    agg_after = aggregate(rows)
+    cmp = compare(agg, agg_after)
+    trace = build_trace(brief, drafts)
+    cfg.view = report.make_view(brief, drafts, trace, cmp, agg, agg_after)
+    return report.render_report(brief, drafts, cmp, trace)
+
+
+def render_page(cfg, name):
+    """複数ページの画面の1枚を作る。まだ何も調べていなければ None（入口に戻す）。"""
+    if cfg.view is None or name not in report.PAGES:
+        return None
+    if name == "changes":
+        return report.page_changes(cfg.view, AFTER_BLOCK)
+    return report.PAGES[name](cfg.view)
 
 
 def make_handler(cfg):
@@ -195,7 +213,19 @@ def make_handler(cfg):
         def do_GET(self):
             if not self._guard():
                 return
-            self._send(200, upload_page(cfg)) if self.path in ("/", "/index.html") else self._send(404, "ページがありません")
+            if self.path in ("/", "/index.html"):
+                return self._send(200, upload_page(cfg))
+            name = self.path.strip("/")
+            if name in report.PAGES:
+                html = render_page(cfg, name)
+                if html is None:  # まだ何も調べていない
+                    self.send_response(302)
+                    self.send_header("Location", "/")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                return self._send(200, html)
+            self._send(404, "ページがありません")
 
         def do_POST(self):
             if not self._guard(post=True):
