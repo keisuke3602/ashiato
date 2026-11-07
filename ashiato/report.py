@@ -369,6 +369,43 @@ def page_actions(view):
     return _layout(view, "actions", body, scripts=f"<script>{JS}</script>")
 
 
+def _ai_counts(agg, paths=None):
+    """AIの要求の、(読めた回数, 読めなかった回数)。paths を渡すと、そのページ宛だけ。"""
+    ok = bad = 0
+    for path, p in agg["pages"].items():
+        if paths is not None and path not in paths:
+            continue
+        for st, n in p["ai"].items():
+            if st[0] in "23":
+                ok += n
+            elif st[0] in "45":
+                bad += n
+    return ok, bad
+
+
+def _fix_summary(view):
+    """直す前と直したあとの、AIの要求の合計と、読めた割合。提案したページ宛の割合。事実の計算だけ。"""
+    cmp, b, a = view["cmp"], view["agg"], view["agg_after"]
+    (bo, bb), (ao, ab) = _ai_counts(b), _ai_counts(a)
+    db, da = cmp["days"]["before"], cmp["days"]["after"]
+    targets = [d["target"] for d in view["drafts"] if d["kind"] in ("new_page", "redirect", "rewrite_page")
+               and d.get("target") and d.get("demand_basis") != "reading"]
+    pages = [t for t in dict.fromkeys(targets) if sum(_ai_counts(b, {t})) + sum(_ai_counts(a, {t}))]
+    (bpo, bpb), (apo, apb) = _ai_counts(b, set(pages)), _ai_counts(a, set(pages))
+    pct = lambda x, y: round(100 * x / y, 1) if y else 0  # noqa: E731
+    def segs(po, pb, o, b_):
+        """提案したページ宛（読めた・読めなかった）と、その他のページ宛（読めた・読めなかった）の割合（%）。0の区分は出さない。"""
+        total = o + b_
+        parts = [("提案したページ宛（読めなかった）", pb, "var(--warn)"), ("提案したページ宛（読めた）", po, "var(--accent)"),
+                 ("その他のページ宛（読めた）", o - po, "var(--ok)"), ("その他のページ宛（読めなかった）", b_ - pb, "var(--sub)")]
+        return [(name, pct(n, total), color) for name, n, color in parts if n]
+    return {"total_before": round((bo + bb) / db, 1), "total_after": round((ao + ab) / da, 1),
+            "rate_before": pct(bo, bo + bb), "rate_after": pct(ao, ao + ab),
+            "pages": pages, "share_before": pct(bpo + bpb, bo + bb), "share_after": pct(apo + apb, ao + ab),
+            "proposal_read_before": pct(bpo, bpo + bpb), "proposal_read_after": pct(apo, apo + apb),
+            "segs_before": segs(bpo, bpb, bo, bb), "segs_after": segs(apo, apb, ao, ab)}
+
+
 def page_changes(view, after_block=""):
     brief, cmp = view["brief"], view["cmp"]
     head = '<h1>直したあとの変化</h1>'
@@ -383,6 +420,18 @@ def page_changes(view, after_block=""):
         a = charts.day_series(after["daily"], after["period"]["from"], after["period"]["to"])
         out += _chart_card("日ごとの、AIの動き（直す前から、直したあとまで）", "点線のところで、ページを直しました。緑は読めた回数、橙は読めなかった回数です。",
                            charts.stacked_days(b + a, "日ごとのAIの読み取り回数。直す前と直したあと", split_after=len(b) - 1, split_text="この間に直した"))
+    if agg and after:
+        f = _fix_summary(view)
+        out += ('<div class="grid3">'
+                + f'<div class="chart">{charts.before_after("AIの要求の合計（回、1日）", f["total_before"], f["total_after"])}</div>'
+                + f'<div class="chart">{charts.before_after("AIが読めた割合（%）", f["rate_before"], f["rate_after"])}</div></div>'
+                + '<p class="sub">AIが来る回数そのものは、ほぼ変わっていません。変わったのは、読めた割合です。</p>')
+        if f["pages"]:
+            names = "、".join(escape(p) for p in f["pages"])
+            out += _chart_card("提案したページ宛の要求", f"AIの提案で作った・直したページ（{names}）宛の要求が、AIの要求全体に占める割合です。",
+                               charts.share_bars([("直す前", f["segs_before"]), ("直したあと", f["segs_after"])], "提案したページ宛の要求の割合。直す前と直したあと"))
+            out += (f'<p class="sub">直す前は、AIの要求の{f["share_before"]:g}%が、提案したページ宛で、そのうち読めたのは{f["proposal_read_before"]:g}%でした。'
+                    f'直したあとは、{f["share_after"]:g}%が、同じページ宛で、そのうち読めたのは{f["proposal_read_after"]:g}%でした。</p>')
     out += ('<div class="grid3">'
             + f'<div class="chart">{charts.before_after("AIが読めなかった回数（1日）", cmp["failed_per_day"]["before"], cmp["failed_per_day"]["after"])}</div>'
             + f'<div class="chart">{charts.before_after("AIが読めた回数（1日）", cmp["ok_per_day"]["before"], cmp["ok_per_day"]["after"])}</div>'
