@@ -30,9 +30,10 @@ class CompareTest(unittest.TestCase):
     def test_days_differ_so_rates_are_per_day(self):
         self.assertEqual(self.c["days"], {"before": 28, "after": 14})
 
-    def test_failures_drop_to_zero_after_the_fix(self):
+    def test_failures_drop_after_the_fix(self):
         self.assertGreater(self.c["failed_per_day"]["before"], 0)
-        self.assertEqual(self.c["failed_per_day"]["after"], 0)
+        self.assertLess(self.c["failed_per_day"]["after"], self.c["failed_per_day"]["before"])  # 減るが、消えない（新しいURLの探索は続く）
+        self.assertGreater(self.c["failed_per_day"]["after"], 0)
         by_path = {r["path"]: r for r in self.c["paths"]}
         for path in ("/access", "/plans/winter"):
             self.assertGreater(by_path[path]["before_failed_per_day"], 0)

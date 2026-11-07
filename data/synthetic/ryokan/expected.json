@@ -2,11 +2,11 @@
   "1_access_missing": {
     "ai_404_before": 197,
     "ai_404_after": 0,
-    "ai_200_after": 75
+    "ai_200_after": 137
   },
   "2_moved_no_redirect": {
     "ai_404_old_path_before": 61,
-    "ai_301_old_path_after": 35,
+    "ai_301_old_path_after": 49,
     "ai_answer_visitors_new_path_before": 22
   },
   "3_healthy": {
@@ -36,6 +36,6 @@
   },
   "totals": {
     "before": 4480,
-    "after": 2413
+    "after": 2672
   }
 }
