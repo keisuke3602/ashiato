@@ -283,20 +283,28 @@ def _demand(brief, limit=6):
             m["count"] += e["count"]
             m["bots"].update(e["bots"])
     lost = sorted(((path, m["count"], sorted(m["bots"])) for path, m in missing.items()), key=lambda r: -r[1])[:limit]
+    kinds = {name: b.get("kind") for name, b in brief.get("bots", {}).items()}
+    assistant = {}  # 探した回数のうち、お客様の質問に答えるために、その場で取りに来たAIの分
+    for path, _n, _bots in lost:
+        by_bot = brief["pages"].get(path, {}).get("ai_by_bot", {})
+        counts = {bot: sum(n for st, n in c.items() if st == "404") for bot, c in by_bot.items() if kinds.get(bot) == "ai_assistant"}
+        assistant[path] = {bot: n for bot, n in counts.items() if n}
     read = sorted(((path, sum(p["ai"].get(st, 0) for st in p["ai"] if st[0] in "23"), p["ai_answer_visitors"])
                    for path, p in brief["pages"].items()), key=lambda r: -r[1])
     read = [r for r in read if r[1] > 0][:limit]
-    return lost, read, redirects
+    return lost, read, redirects, assistant
 
 
 def _demand_panel(brief):
-    lost, read, redirects = _demand(brief)
+    lost, read, redirects, assistant = _demand(brief)
     if not lost and not read:
         return ""
     def lost_row(path, n, bots):
         hint = f'<span class="st st3">転送で足りる（{escape(redirects[path])}）</span>' if path in redirects else '<span class="st st0">新しく作る候補</span>'
-        return f"<tr><td>{escape(path)}</td><td>{n:,}</td><td>{hint}</td></tr>"
-    left = ("<div class=\"chart\"><h3>AIが探したのに、無かったページ</h3><p class=\"sub\">AIが、あると思って取りに来て、見つからなかったアドレスです。回数が多いほど、求められている目安です。</p>"
+        who = assistant.get(path)
+        by = (f'<div class="ev">お客様の質問に答えるために来たAI（{escape("、".join(who))}）: {sum(who.values()):,}回</div>' if who else "")
+        return f"<tr><td>{escape(path)}{by}</td><td>{n:,}</td><td>{hint}</td></tr>"
+    left = ("<div class=\"chart\"><h3>AIが探したのに、無かったページ</h3><p class=\"sub\">AIが、あると思って取りに来て、見つからなかったアドレスです。回数が多いほど、求められている目安です。お客様の質問に答えるために来たAIは、実際にお客様が聞いた結果なので、より強い手がかりです。</p>"
             "<table><tr><th>アドレス</th><th>探した回数</th><th>見立て</th></tr>" + "".join(lost_row(*r) for r in lost) + "</table></div>") if lost else ""
     right = ("<div class=\"chart\"><h3>AIがよく読んでいるページ</h3><p class=\"sub\">いま求められている話題の目安です。ここに近い話題が、次のページの手がかりになります。</p>"
              "<table><tr><th>ページ</th><th>AIが読めた回数</th><th>AIの回答から来たお客様</th></tr>"
