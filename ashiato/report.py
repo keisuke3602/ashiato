@@ -31,7 +31,7 @@ pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);borde
 .exp button{font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:6px 16px;cursor:pointer;margin-top:8px}
 .acts button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
 .card.done-reject{opacity:.55}
-.st{font-size:.8rem;border-radius:99px;padding:1px 10px;border:1px solid var(--line)}.st0,.st1{color:var(--warn);border-color:var(--warn)}.st3{color:var(--ok);border-color:var(--ok)}
+.st{font-size:.8rem;border-radius:99px;padding:1px 10px;border:1px solid var(--line);white-space:nowrap;display:inline-block}.st0,.st1{color:var(--warn);border-color:var(--warn)}.st3{color:var(--ok);border-color:var(--ok)}
 .trace{padding-left:1.2em}.trace li{margin-bottom:14px}.verdict{color:var(--accent);font-size:.95rem}
 table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}th{color:var(--sub);font-weight:400;font-size:.88rem}
 """
