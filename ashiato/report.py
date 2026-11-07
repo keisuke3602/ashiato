@@ -61,7 +61,7 @@ def _tiles(brief):
     bad = sum(n for p in brief["pages"].values() for st, n in p["ai"].items() if st[0] in "45")
     visitors = sum(p["ai_answer_visitors"] for p in brief["pages"].values())
     return [("AIがページを読みに来た回数", ai, ""), ("そのうち、読めなかった回数", bad, "bad" if bad else ""),
-            ("AIの回答から来たお客様", visitors, "")]
+            ("AIの回答から来た人（回）", visitors, "")]
 
 
 def _site_tiles(brief):
@@ -98,7 +98,7 @@ def _basis(d, brief):
         based = [r for r in demand.get("reading", []) if r["path"] in d.get("based_on", [])]
         if not based:
             return ""
-        parts = "、".join(f'{escape(r["path"])}（AIが{r["ai_reads"]:,}回読み、AIの回答から来たお客様が{r["ai_answer_visitors"]:,}人）' for r in based)
+        parts = "、".join(f'{escape(r["path"])}（AIが{r["ai_reads"]:,}回読み、AIの回答から来た人のアクセスが{r["ai_answer_visitors"]:,}回）' for r in based)
         return f'<p class="basis">AIがよく読んでいるページの、続きの話題の提案です。元のページ: {parts}。AIがこのページを探した記録があるわけではありません。</p>'
     return ""
 
@@ -136,7 +136,7 @@ def _compare(c):
     return (f'<h2>直したあとの変化</h2><div class="card"><p class="sub">直す前（{c["days"]["before"]}日分）と、直したあと（{c["days"]["after"]}日分）を、1日あたりで比べています。</p>'
             f'<table><tr><th></th><th>直す前</th><th>直したあと</th></tr>'
             + row('AIが読めた回数（1日）', c['ok_per_day']) + row('AIが読めなかった回数（1日）', c['failed_per_day'])
-            + row('AIの回答から来たお客様（1日）', c['ai_answer_visitors_per_day'])
+            + row('AIの回答から来た人（回、1日）', c['ai_answer_visitors_per_day'])
             + f'</table><details><summary>読めなかったページ別</summary><table><tr><th>ページ</th><th>直す前（1日）</th><th>直したあと（1日）</th></tr>{paths}</table></details></div>')
 
 
@@ -145,7 +145,7 @@ def _pages(rows):
                    f'<td>{r["ai_ok"]:,}</td><td>{r["ai_failed"]:,}</td><td>{r["ai_answer_visitors"]:,}</td><td>{r["human"]:,}</td></tr>'
                    for r in rows)
     return ('<h2>ページごとの様子</h2><div class="card" style="overflow-x:auto"><table><tr><th>ページ</th><th>AIから見て</th>'
-            f'<th>読めた回数</th><th>読めなかった回数</th><th>AIの回答から来たお客様</th><th>お客様の訪問</th></tr>{body}</table></div>')
+            f'<th>読めた回数</th><th>読めなかった回数</th><th>AIの回答から来た人（回）</th><th>人のアクセス（回）</th></tr>{body}</table></div>')
 
 
 def _ai_answers(a):
@@ -307,7 +307,7 @@ def _demand_panel(brief):
     left = ("<div class=\"chart\"><h3>AIが探したのに、無かったページ</h3><p class=\"sub\">AIが、あると思って取りに来て、見つからなかったアドレスです。回数が多いほど、求められている目安です。お客様の質問に答えるために来たAIは、実際にお客様が聞いた結果なので、より強い手がかりです。</p>"
             "<table><tr><th>アドレス</th><th>探した回数</th><th>見立て</th></tr>" + "".join(lost_row(*r) for r in lost) + "</table></div>") if lost else ""
     right = ("<div class=\"chart\"><h3>AIがよく読んでいるページ</h3><p class=\"sub\">いま求められている話題の目安です。ここに近い話題が、次のページの手がかりになります。</p>"
-             "<table><tr><th>ページ</th><th>AIが読めた回数</th><th>AIの回答から来たお客様</th></tr>"
+             "<table><tr><th>ページ</th><th>AIが読めた回数</th><th>AIの回答から来た人（回）</th></tr>"
              + "".join(f"<tr><td>{escape(path)}</td><td>{n:,}</td><td>{v:,}</td></tr>" for path, n, v in read) + "</table></div>") if read else ""
     return ('<h2>どんなページが求められているか</h2><div class="grid2">' + left + right + '</div>'
             '<p class="sub">AIが取りに来た回数からの目安です。AIが回答に使ったかどうかまでは、アクセスの記録からは分かりません。</p>')
@@ -331,8 +331,8 @@ def page_dashboard(view):
         if bots:
             charts_html += _chart_card("どのAIが来ているか", "AIの名前ごとの回数です（本物と確かめられたものだけ）。",
                                        charts.hbars(bots, "AIの名前ごとの読み取り回数"))
-        charts_html += _chart_card("AIの回答から来たお客様（1日ごと）", "AIの回答を見て、サイトに来たお客様の数です。",
-                                   charts.line_days(series, "answer_visitors", "AIの回答から来たお客様の数（日ごと）"))
+        charts_html += _chart_card("AIの回答から来た人（1日ごと）", "AIの回答を見て、サイトに来た人のアクセスの回数です。人数ではなく、回数です。",
+                                   charts.line_days(series, "answer_visitors", "AIの回答から来た人のアクセス回数（日ごと）"))
     if site_only and brief.get("site_pages"):
         rows = [(pg["path"], pg["words"], 0) if pg["words"] >= THIN_WORDS else (pg["path"], 0, pg["words"])
                 for pg in sorted(brief["site_pages"], key=lambda x: -x["words"])[:12]]
@@ -385,7 +385,7 @@ def page_changes(view, after_block=""):
     out += ('<div class="grid3">'
             + f'<div class="chart">{charts.before_after("AIが読めなかった回数（1日）", cmp["failed_per_day"]["before"], cmp["failed_per_day"]["after"])}</div>'
             + f'<div class="chart">{charts.before_after("AIが読めた回数（1日）", cmp["ok_per_day"]["before"], cmp["ok_per_day"]["after"])}</div>'
-            + f'<div class="chart">{charts.before_after("AIの回答から来たお客様（1日）", cmp["ai_answer_visitors_per_day"]["before"], cmp["ai_answer_visitors_per_day"]["after"])}</div></div>')
+            + f'<div class="chart">{charts.before_after("AIの回答から来た人（回、1日）", cmp["ai_answer_visitors_per_day"]["before"], cmp["ai_answer_visitors_per_day"]["after"])}</div></div>')
     table = _compare(cmp).replace("<h2>直したあとの変化</h2>", "<h2>数字で見る</h2>")
     table = re.sub(r'<p class="sub">直す前（.*?</p>', "", table, count=1)  # 同じ説明が、ページの上にある
     out += table
