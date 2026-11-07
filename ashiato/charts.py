@@ -122,7 +122,7 @@ def before_after(title, before, after, lower_is_better=False):
     good = "var(--ok)"
     bars = []
     for i, (name, v, color) in enumerate((("直す前", before, "var(--sub)"), ("直したあと", after, good))):
-        bh = ph * v / vmax
+        bh = ph * 0.8 * v / vmax  # 棒の上に数字を置く余白（上限の棒でも、題に重ならない）
         x = 50 + i * 110
         bars.append(f'<rect x="{x}" y="{top + ph - bh:.1f}" width="80" height="{bh:.1f}" fill="{color}"/>')
         bars.append(f'<text x="{x + 40}" y="{top + ph - bh - 6:.1f}" font-size="14" font-weight="600" text-anchor="middle" fill="var(--ink)">{v:g}</text>')
@@ -131,26 +131,3 @@ def before_after(title, before, after, lower_is_better=False):
     base = f'<line x1="30" y1="{top + ph}" x2="{w - 30}" y2="{top + ph}" stroke="var(--line)"/>'
     return _svg(w, h, f"{title}: 直す前 {before:g}、直したあと {after:g}", head + base + "".join(bars))
 
-
-def share_bars(rows, label):
-    """割合の横棒（100%）。rows: (名前, [(区分の名前, 割合%, 色), ...])。割合が小さい区分は、数字を出さない。"""
-    left, rh, pw = 90, 44, W - 90 - 20
-    body, legend, seen = [], [], []
-    for i, (name, segs) in enumerate(rows):
-        y = 10 + i * rh
-        body.append(f'<text x="{left - 8}" y="{y + 21}" font-size="12" text-anchor="end" fill="var(--ink)">{escape(name)}</text>')
-        x = left
-        for seg, pct, color in segs:
-            w = pw * pct / 100
-            body.append(f'<rect x="{x:.1f}" y="{y}" width="{w:.1f}" height="30" fill="{color}"><title>{escape(name)} {escape(seg)} {pct:g}%</title></rect>')
-            if w > 46:
-                body.append(f'<text x="{x + w / 2:.1f}" y="{y + 20}" font-size="12" font-weight="600" text-anchor="middle" fill="#fff">{pct:g}%</text>')
-            x += w
-            if (seg, color) not in seen:
-                seen.append((seg, color))
-    ly = 10 + len(rows) * rh + 4
-    lx = left
-    for seg, color in seen:
-        legend.append(f'<rect x="{lx}" y="{ly}" width="10" height="10" fill="{color}"/><text x="{lx + 14}" y="{ly + 9}" font-size="11" fill="var(--sub)">{escape(seg)}</text>')
-        lx += 14 + 12 * len(seg) + 18
-    return _svg(W, ly + 22, label, "".join(body) + "".join(legend))

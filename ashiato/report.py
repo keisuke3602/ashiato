@@ -383,27 +383,47 @@ def _ai_counts(agg, paths=None):
     return ok, bad
 
 
+def _total_note(f):
+    """AIの要求の合計の変化を、数字から言葉にする。増えた理由は、記録だけでは分からない、と添える。"""
+    b, a = f["total_before"], f["total_after"]
+    change = (a - b) / b if b else 0
+    if abs(change) < 0.05:
+        return (f"AIの要求の合計は、ほぼ変わっていません（{b:g} → {a:g}回/日）。AIの利用は全体に増えているため、横ばいは、伸び悩みの可能性があります。"
+                f"読めた割合は、{f['rate_before']:g}%から{f['rate_after']:g}%になりました。")
+    word = "増えています" if change > 0 else "減っています"
+    return (f"AIの要求の合計は、1日あたり{b:g}回から{a:g}回に、{word}。読めた割合は、{f['rate_before']:g}%から{f['rate_after']:g}%になりました。"
+            "合計が変わった理由が、ページを直したことかどうかは、記録だけでは分かりません。")
+
+
 def _fix_summary(view):
-    """直す前と直したあとの、AIの要求の合計と、読めた割合。提案したページ宛の割合。事実の計算だけ。"""
+    """直す前と直したあとの、AIの要求の合計、読めた割合、提案したページ宛と、もとからあるページ宛の変化。事実の計算だけ。"""
     cmp, b, a = view["cmp"], view["agg"], view["agg_after"]
     (bo, bb), (ao, ab) = _ai_counts(b), _ai_counts(a)
     db, da = cmp["days"]["before"], cmp["days"]["after"]
     targets = [d["target"] for d in view["drafts"] if d["kind"] in ("new_page", "redirect", "rewrite_page")
                and d.get("target") and d.get("demand_basis") != "reading"]
     pages = [t for t in dict.fromkeys(targets) if sum(_ai_counts(b, {t})) + sum(_ai_counts(a, {t}))]
+    existing = {p["path"] for p in view["brief"]["site_pages"]} - set(pages)  # もとからあるページ（比べる相手。提案の対象は除く）
     (bpo, bpb), (apo, apb) = _ai_counts(b, set(pages)), _ai_counts(a, set(pages))
     pct = lambda x, y: round(100 * x / y, 1) if y else 0  # noqa: E731
-    def segs(po, pb, o, b_):
-        """提案したページ宛（読めた・読めなかった）と、その他のページ宛（読めた・読めなかった）の割合（%）。0の区分は出さない。"""
-        total = o + b_
-        parts = [("提案したページ宛（読めなかった）", pb, "var(--warn)"), ("提案したページ宛（読めた）", po, "var(--accent)"),
-                 ("その他のページ宛（読めた）", o - po, "var(--ok)"), ("その他のページ宛（読めなかった）", b_ - pb, "var(--sub)")]
-        return [(name, pct(n, total), color) for name, n, color in parts if n]
-    return {"total_before": round((bo + bb) / db, 1), "total_after": round((ao + ab) / da, 1),
-            "rate_before": pct(bo, bo + bb), "rate_after": pct(ao, ao + ab),
-            "pages": pages, "share_before": pct(bpo + bpb, bo + bb), "share_after": pct(apo + apb, ao + ab),
+    per_day = lambda n, days: round(n / days, 1)  # noqa: E731
+    treat_b, treat_a = per_day(bpo + bpb, db), per_day(apo + apb, da)
+    ctrl_b, ctrl_a = per_day(sum(_ai_counts(b, existing)), db), per_day(sum(_ai_counts(a, existing)), da)
+    change = lambda x, y: round(100 * (y / x - 1)) if x else None  # noqa: E731
+    return {"total_before": per_day(bo + bb, db), "total_after": per_day(ao + ab, da),
+            "rate_before": pct(bo, bo + bb), "rate_after": pct(ao, ao + ab), "pages": pages,
             "proposal_read_before": pct(bpo, bpo + bpb), "proposal_read_after": pct(apo, apo + apb),
-            "segs_before": segs(bpo, bpb, bo, bb), "segs_after": segs(apo, apb, ao, ab)}
+            "treat_before": treat_b, "treat_after": treat_a, "ctrl_before": ctrl_b, "ctrl_after": ctrl_a,
+            "treat_change": change(treat_b, treat_a), "ctrl_change": change(ctrl_b, ctrl_a)}
+
+
+def _effect_note(f):
+    """提案したページ宛と、もとからあるページ宛の変化。効果の証明ではなく、手がかりだと断る。"""
+    if f["treat_change"] is None or f["ctrl_change"] is None:
+        return ""
+    return (f"もとからあるページ宛の要求は、{f['ctrl_change']:+d}%変わりました。これは、サイト全体の流れ（AIの利用の増減など）の目安です。"
+            f"提案したページ宛は、{f['treat_change']:+d}%です。提案したページ宛のほうが大きく増えていれば、提案の効果の手がかりですが、証明ではありません。"
+            f"提案したページ宛の要求のうち、読めたのは、直す前が{f['proposal_read_before']:g}%、直したあとが{f['proposal_read_after']:g}%です。")
 
 
 def page_changes(view, after_block=""):
@@ -422,16 +442,16 @@ def page_changes(view, after_block=""):
                            charts.stacked_days(b + a, "日ごとのAIの読み取り回数。直す前と直したあと", split_after=len(b) - 1, split_text="この間に直した"))
     if agg and after:
         f = _fix_summary(view)
-        out += ('<div class="grid3">'
+        out += ('<div class="grid2">'
                 + f'<div class="chart">{charts.before_after("AIの要求の合計（回、1日）", f["total_before"], f["total_after"])}</div>'
                 + f'<div class="chart">{charts.before_after("AIが読めた割合（%）", f["rate_before"], f["rate_after"])}</div></div>'
-                + '<p class="sub">AIが来る回数そのものは、ほぼ変わっていません。変わったのは、読めた割合です。</p>')
+                + f'<p class="sub">{_total_note(f)}</p>')
         if f["pages"]:
             names = "、".join(escape(p) for p in f["pages"])
-            out += _chart_card("提案したページ宛の要求", f"AIの提案で作った・直したページ（{names}）宛の要求が、AIの要求全体に占める割合です。",
-                               charts.share_bars([("直す前", f["segs_before"]), ("直したあと", f["segs_after"])], "提案したページ宛の要求の割合。直す前と直したあと"))
-            out += (f'<p class="sub">直す前は、AIの要求の{f["share_before"]:g}%が、提案したページ宛で、そのうち読めたのは{f["proposal_read_before"]:g}%でした。'
-                    f'直したあとは、{f["share_after"]:g}%が、同じページ宛で、そのうち読めたのは{f["proposal_read_after"]:g}%でした。</p>')
+            out += ('<h2>提案の効果の手がかり</h2><div class="grid2">'
+                    + f'<div class="chart">{charts.before_after("提案したページ宛の要求（回、1日）", f["treat_before"], f["treat_after"])}</div>'
+                    + f'<div class="chart">{charts.before_after("もとからあるページ宛の要求（回、1日）", f["ctrl_before"], f["ctrl_after"])}</div></div>'
+                    + f'<p class="sub">提案したページ: {names}。{_effect_note(f)}</p>')
     out += ('<div class="grid3">'
             + f'<div class="chart">{charts.before_after("AIが読めなかった回数（1日）", cmp["failed_per_day"]["before"], cmp["failed_per_day"]["after"])}</div>'
             + f'<div class="chart">{charts.before_after("AIが読めた回数（1日）", cmp["ok_per_day"]["before"], cmp["ok_per_day"]["after"])}</div>'

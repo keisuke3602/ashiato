@@ -101,8 +101,9 @@ class UiTest(unittest.TestCase):
         self.assertIn("7.8", html)
         self.assertNotIn("直したあとのアクセス記録を入れると", html)
         self.assertGreaterEqual(len(svgs(html)), 7)  # 日ごと、合計、読めた割合、提案したページ宛、3つの前後
-        for needle in ("AIの要求の合計", "AIが読めた割合", "AIが来る回数そのものは、ほぼ変わっていません", "提案したページ宛の要求",
-                       "/access、/plans/winter", "30.7%が、提案したページ宛で、そのうち読めたのは0%", "25.5%が、同じページ宛で、そのうち読めたのは100%"):
+        for needle in ("AIの要求の合計", "AIが読めた割合", "提案の効果の手がかり", "提案したページ宛の要求（回、1日）",
+                       "もとからあるページ宛の要求（回、1日）", "/access、/plans/winter", "証明ではありません",
+                       "提案したページ宛の要求のうち、読めたのは、直す前が0%、直したあとが100%"):
             self.assertIn(needle, html)
 
     def test_changes_page_with_a_fixed_after_log(self):
@@ -151,26 +152,48 @@ class UiTest(unittest.TestCase):
 
 
 class FixSummaryTest(unittest.TestCase):
-    def test_totals_are_flat_and_the_rate_rises(self):
-        view = {"cmp": {"days": {"before": 2, "after": 1}},
-                "agg": {"pages": {"/a": {"ai": {"404": 6}}, "/b": {"ai": {"200": 4}}}},
-                "agg_after": {"pages": {"/a": {"ai": {"200": 5}}, "/b": {"ai": {"200": 5}}}},
-                "drafts": [{"kind": "new_page", "target": "/a"}, {"kind": "new_page", "target": "/z", "demand_basis": "reading"}]}
-        f = report._fix_summary(view)
-        self.assertEqual((f["total_before"], f["total_after"]), (5.0, 10.0))
-        self.assertEqual((f["rate_before"], f["rate_after"]), (40.0, 100.0))
+    def view(self, before, after, days=(1, 1), drafts=None):
+        return {"cmp": {"days": {"before": days[0], "after": days[1]}}, "agg": {"pages": before}, "agg_after": {"pages": after},
+                "brief": {"site_pages": [{"path": "/b"}, {"path": "/c"}]},
+                "drafts": drafts or [{"kind": "new_page", "target": "/a"}, {"kind": "new_page", "target": "/z", "demand_basis": "reading"}]}
+
+    def test_totals_rate_and_the_two_groups(self):
+        v = self.view({"/a": {"ai": {"404": 6}}, "/b": {"ai": {"200": 4}}, "/c": {"ai": {"200": 6}}},
+                      {"/a": {"ai": {"200": 8}}, "/b": {"ai": {"200": 5}}, "/c": {"ai": {"200": 5}}, "/new": {"ai": {"404": 2}}},
+                      days=(2, 1))
+        f = report._fix_summary(v)
+        self.assertEqual((f["total_before"], f["total_after"]), (8.0, 20.0))
+        self.assertEqual((f["rate_before"], f["rate_after"]), (62.5, 90.0))
         self.assertEqual(f["pages"], ["/a"])  # 続きの話題の提案（reading）は、数えない
-        self.assertEqual((f["share_before"], f["share_after"]), (60.0, 50.0))
+        self.assertEqual((f["treat_before"], f["treat_after"]), (3.0, 8.0))
+        self.assertEqual((f["ctrl_before"], f["ctrl_after"]), (5.0, 10.0))  # もとからあるページだけ。まだ無いページ（/new）は入れない
+        self.assertEqual((f["treat_change"], f["ctrl_change"]), (167, 100))
         self.assertEqual((f["proposal_read_before"], f["proposal_read_after"]), (0, 100.0))
 
-    def test_other_pages_can_have_failures_too(self):
-        view = {"cmp": {"days": {"before": 1, "after": 1}},
-                "agg": {"pages": {"/a": {"ai": {"404": 2}}, "/b": {"ai": {"200": 1, "404": 1}}}},
-                "agg_after": {"pages": {"/a": {"ai": {"200": 2}}, "/b": {"ai": {"200": 1, "404": 1}}}},
-                "drafts": [{"kind": "redirect", "target": "/a"}]}
-        f = report._fix_summary(view)
-        names = [n for n, _p, _c in f["segs_after"]]
-        self.assertIn("その他のページ宛（読めなかった）", names)  # 決め打ちで「全部読めた」としない
+    def test_effect_note_says_it_is_not_proof(self):
+        v = self.view({"/a": {"ai": {"404": 4}}, "/b": {"ai": {"200": 10}}}, {"/a": {"ai": {"200": 8}}, "/b": {"ai": {"200": 11}}})
+        note = report._effect_note(report._fix_summary(v))
+        self.assertIn("+10%", note)  # もとからあるページ
+        self.assertIn("+100%", note)  # 提案したページ
+        self.assertIn("証明ではありません", note)
+
+    def test_no_note_when_there_is_nothing_to_compare(self):
+        v = self.view({"/a": {"ai": {"404": 4}}}, {"/a": {"ai": {"200": 8}}})  # もとからあるページ宛の要求が無い
+        self.assertEqual(report._effect_note(report._fix_summary(v)), "")
+
+
+class TotalNoteTest(unittest.TestCase):
+    def f(self, b, a):
+        return {"total_before": b, "total_after": a, "rate_before": 70.0, "rate_after": 90.0}
+
+    def test_flat_up_and_down(self):
+        flat = report._total_note(self.f(25.0, 25.8))
+        self.assertIn("ほぼ変わっていません", flat)
+        self.assertIn("伸び悩みの可能性", flat)  # AIの利用が全体に増えているので、横ばいは、よい知らせではない
+        up = report._total_note(self.f(25.0, 34.0))
+        self.assertIn("増えています", up)
+        self.assertIn("記録だけでは分かりません", up)  # 増えた理由を、言い切らない
+        self.assertIn("減っています", report._total_note(self.f(25.0, 18.0)))
 
 
 class ChartsTest(unittest.TestCase):
@@ -182,9 +205,6 @@ class ChartsTest(unittest.TestCase):
         s = charts.day_series({"2026-09-07": {"ai_ok": 1}, "2026-09-10": {"ai_ok": 2}})
         self.assertEqual([x[0] for x in s], ["9/7", "9/8", "9/9", "9/10"])
         self.assertEqual(s[1][2], {})
-
-    def test_share_bars_are_well_formed(self):
-        ET.fromstring(charts.share_bars([("直す前", [("a", 30.7, "var(--warn)"), ("b", 69.3, "var(--ok)")]), ("直したあと", [])], "x"))
 
     def test_labels_are_escaped(self):
         svg = charts.hbars([("<script>x</script>", 1, 0)], "a&b")
