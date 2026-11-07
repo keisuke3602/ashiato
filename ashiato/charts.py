@@ -13,7 +13,7 @@ def _nice_max(v):
     if v <= 0:
         return 1
     e = 10 ** math.floor(math.log10(v))
-    for m in (1, 2, 5, 10):
+    for m in (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10):  # 細かめの刻み（57 → 60 になる。100 だと、棒が半分の高さで止まる）
         if v <= m * e:
             return m * e
     return 10 * e
