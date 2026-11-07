@@ -50,7 +50,12 @@ def _period(rows):
     return {"from": min(jst).date().isoformat(), "to": max(jst).date().isoformat()}
 
 
+def _jst_day(ts):
+    return (datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=9)).date().isoformat()
+
+
 def aggregate(rows):
+    daily = defaultdict(lambda: {"ai_ok": 0, "ai_failed": 0, "answer_visitors": 0})  # 日本時間の日付ごと（グラフ用。ブリーフには入れない）
     times = {}  # 根拠に使った行ID -> 時刻（画面で日時に直すため）
 
     def keep(store, key, r, limit=EVIDENCE_LIMIT):
@@ -93,6 +98,10 @@ def aggregate(rows):
             if verified is False:
                 continue  # 未検証のAI名乗りは需要に数えない（bots に出る）
             p["ai"][str(r["status"])] += 1
+            if 200 <= r["status"] < 400:
+                daily[_jst_day(r["ts"])]["ai_ok"] += 1
+            elif r["status"] >= 400:
+                daily[_jst_day(r["ts"])]["ai_failed"] += 1
             _bump(p["ai_by_bot"], name, r["status"])
             keep(p["evidence"], str(r["status"]), r)
         elif kind == "search":
@@ -100,6 +109,7 @@ def aggregate(rows):
         elif kind == "human":
             if is_ai_answer_visitor(r):
                 p["ai_answer_visitors"] += 1
+                daily[_jst_day(r["ts"])]["answer_visitors"] += 1
                 keep(p["evidence"], "ai_answer_visitor", r, 3)
             else:
                 p["human"] += 1
@@ -113,6 +123,7 @@ def aggregate(rows):
         "total_rows": len(rows),
         "evidence_times": times,
         "period": _period(rows),
+        "daily": dict(sorted(daily.items())),
         "pages": {path: {"human": p["human"], "search": p["search"], "ai_answer_visitors": p["ai_answer_visitors"],
                          "ai": dict(p["ai"]), "ai_by_bot": {k: dict(v) for k, v in p["ai_by_bot"].items()},
                          "evidence": dict(p["evidence"])} for path, p in sorted(pages.items())},

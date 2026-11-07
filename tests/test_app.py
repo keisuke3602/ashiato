@@ -205,7 +205,9 @@ class AppTest(unittest.TestCase):
             req = urllib.request.Request(base + "/analyze", data=self.text.encode(), method="POST",
                                          headers={"X-Filename": "before.ndjson", "X-Ashiato": "1"})
             self.assertIn("次にやること", urllib.request.urlopen(req).read().decode())
-            bad = urllib.request.Request(base + "/analyze", data=b"not a log", method="POST",
+            self.assertIn("<svg", urllib.request.urlopen(base + "/dashboard").read().decode())  # 調べたあとは、複数ページの画面が出る
+            self.assertIn("承認した下書き", urllib.request.urlopen(base + "/actions").read().decode())
+            bad =urllib.request.Request(base + "/analyze", data=b"not a log", method="POST",
                                       headers={"X-Filename": "x.ndjson", "X-Ashiato": "1"})
             with self.assertRaises(urllib.error.HTTPError) as e:
                 urllib.request.urlopen(bad)
