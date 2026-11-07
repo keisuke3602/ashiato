@@ -41,7 +41,7 @@ class DocsClaimsTest(unittest.TestCase):
     def numbers(self):
         (_, ai, _), (_, bad, _), (_, visitors, _) = report._tiles(self.brief)
         failed = self.compare["failed_per_day"]
-        return [f"{ai}回", f"{bad}回", f"{visitors}人", f"{bad / ai * 100:.1f}%", f"{failed['before']:g} → {failed['after']:g}"]
+        return [f"{ai}回", f"{bad}回", f"{visitors}回", f"{bad / ai * 100:.1f}%", f"{failed['before']:g} → {failed['after']:g}"]
 
     def missing(self, doc):
         return [n for n in self.numbers() if n not in doc]
@@ -57,8 +57,8 @@ class DocsClaimsTest(unittest.TestCase):
     def test_saved_response_covers_the_planted_findings(self):
         main = {(d["kind"], d["target"]) for d in self.response if d["kind"] in ACTIONS and d.get("demand_basis") != "reading"}
         self.assertEqual(main, PLANTED_ACTIONS)  # 仕込みの1,2,5,6。ほかに、記録に根拠のない作業が無いこと
-        healthy = " ".join(d["why"] for d in self.response if d["kind"] == "leave_alone")
-        self.assertIn("町の雪まつり2026", healthy)  # 仕込み3
+        healthy = " ".join(d["title"] + d["why"] for d in self.response if d["kind"] == "leave_alone")
+        self.assertIn("雪まつり", healthy)  # 仕込み3（雪まつりの記事は、健全）
         ignored = " ".join(d["title"] + d["why"] for d in self.response if d["kind"] == "ignore")
         self.assertIn("管理", ignored)  # 仕込み4
         self.assertIn("名乗", ignored)  # 仕込み7

@@ -89,7 +89,7 @@ class DemandTest(unittest.TestCase):
         reading = report._card(0, self.follow_up(why="ここに数字は書かない"), {}, brief=self.brief)
         self.assertIn("続きの話題の候補", reading)
         self.assertIn("156回読み", reading)
-        self.assertIn("11人", reading)
+        self.assertIn("11回", reading)
         self.assertIn("探した記録があるわけではありません", reading)
         self.assertNotIn("basis", report._card(0, self.draft(), {}, brief=self.brief))  # 需要の印が無い下書きには、出さない
 
