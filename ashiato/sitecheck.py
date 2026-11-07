@@ -5,10 +5,12 @@
   fetch_site(url): 持ち主のサイトの公開ページを取りに行って、その形にする（robots.txt、sitemap.xml、各ページ。最大 MAX_PAGES）。
 取得はコードがする。Claude はサイトに触れない。
 """
+import ipaddress
 import re
+import socket
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .brief import blocked_agents
 from .classify import AI_KINDS, UA_TABLE
@@ -70,12 +72,47 @@ def _words(text):
     return max(len(text.split()), len(text) // 2)  # 日本語は空白が少ないので、文字数の半分も見る
 
 
-def _get(url):
-    """(状態コード, 本文)。http/https だけ。サイズと時間に上限がある。"""
-    if urlsplit(url).scheme not in ("http", "https"):
+class BlockedAddress(ValueError):
+    """取得先が、公開されたサイトではない（このパソコンや社内のネットワークなど）。"""
+
+
+def is_public_host(host, resolve=socket.getaddrinfo):
+    """取得先が、公開インターネット上のアドレスか。ループバック、プライベート、リンクローカルなどは偽。
+    名前が解決できないときも偽。ただし、確認のあとに名前の解決先が変わる攻撃（DNSの付け替え）までは防げない。"""
+    try:
+        addrs = {i[4][0] for i in resolve(host, None)}
+    except OSError:
+        return False
+    if not addrs:
+        return False
+    for a in addrs:
+        ip = ipaddress.ip_address(a.split("%")[0])
+        if ip.version == 6 and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        if not ip.is_global:
+            return False
+    return True
+
+
+def _check_url(url):
+    sp = urlsplit(url)
+    if sp.scheme not in ("http", "https"):
         raise ValueError("http か https のアドレスを入れてください")
+    if not sp.hostname or not is_public_host(sp.hostname):
+        raise BlockedAddress("公開されているサイトのアドレスだけ、調べられます")
+
+
+class _SafeRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _check_url(newurl)  # 転送先も、公開されたサイトだけ
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _get(url):
+    """(状態コード, 本文)。公開された http/https のサイトだけ。サイズと時間に上限がある。"""
+    _check_url(url)
     req = Request(url, headers={"User-Agent": "ashiato/0.1 (site check, run by the site owner)"})
-    with urlopen(req, timeout=10) as r:  # noqa: S310
+    with build_opener(_SafeRedirect).open(req, timeout=10) as r:  # noqa: S310
         return r.status, r.read(MAX_BYTES).decode("utf-8", errors="replace")
 
 
@@ -90,6 +127,8 @@ def fetch_site(url, get=_get, max_pages=MAX_PAGES):
         try:
             status, body = get(u)
             return body if status == 200 else ""
+        except BlockedAddress:
+            raise
         except Exception:
             return ""
 

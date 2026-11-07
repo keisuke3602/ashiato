@@ -15,6 +15,14 @@ from .trace import build_trace
 
 MAX_BYTES = 50 * 1024 * 1024
 
+
+def request_allowed(host, origin, port):
+    """自分のページからの要求だけを通す。Host が違えば（DNSの付け替えなど）、Origin が自分のページでなければ（別のサイトからの送信）断る。"""
+    hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    if (host or "") not in hosts:
+        return False
+    return origin is None or origin in {f"http://{h}" for h in hosts}
+
 UPLOAD_PAGE = """<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>足跡</title><style>
 :root{--bg:#faf8f5;--card:#fff;--ink:#2b2622;--sub:#6f655c;--line:#d9d0c5;--accent:#b4532a}
@@ -36,7 +44,7 @@ details{margin-top:28px;color:var(--sub);font-size:.92rem}
 </main><script>
 var drop=document.getElementById('drop'),input=document.getElementById('file'),busy=document.getElementById('busy');
 function send(f){if(!f)return;drop.style.display='none';busy.style.display='block';
- fetch('/analyze',{method:'POST',headers:{'X-Filename':encodeURIComponent(f.name)},body:f}).then(function(r){return r.text()})
+ fetch('/analyze',{method:'POST',headers:{'X-Ashiato':'1','X-Filename':encodeURIComponent(f.name)},body:f}).then(function(r){return r.text()})
  .then(function(h){document.open();document.write(h);document.close()}).catch(function(){busy.textContent='うまく読み込めませんでした。ファイルを確かめて、もう一度お試しください。'})}
 input.addEventListener('change',function(){send(input.files[0])});
 ['dragenter','dragover'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('over')})});
@@ -55,7 +63,7 @@ background:var(--card);padding:28px 16px;text-align:center;cursor:pointer;color:
 <script>
 (function(){var z=document.getElementById('after'),i=document.getElementById('afterfile');
 function go(f){if(!f)return;z.querySelector('b').textContent='前後を比べています…';
- fetch('/compare',{method:'POST',headers:{'X-Filename':encodeURIComponent(f.name)},body:f}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
+ fetch('/compare',{method:'POST',headers:{'X-Ashiato':'1','X-Filename':encodeURIComponent(f.name)},body:f}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
  .then(function(a){if(a[0]){document.open();document.write(a[1]);document.close()}else{z.querySelector('b').textContent=a[1]}})
  .catch(function(){z.querySelector('b').textContent='うまく読み込めませんでした。もう一度お試しください。'})}
 i.addEventListener('change',function(){go(i.files[0])});
@@ -80,7 +88,7 @@ SITE_BLOCK = """<div id="siteform" style="margin-top:36px;padding-top:24px;borde
 (function(){var u=document.getElementById('siteurl'),busy=document.getElementById('busy');
 function go(url){busy.textContent='サイトのページを読んで、Claudeが原因を考えています。数分かかります…';busy.style.display='block';document.getElementById('siteform').style.display='none';document.getElementById('drop').style.display='none';
  var body=JSON.stringify({url:url,ask_ai:document.getElementById('askai').checked,business:document.getElementById('biz').value});
- fetch('/site',{method:'POST',body:body}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
+ fetch('/site',{method:'POST',headers:{'X-Ashiato':'1'},body:body}).then(function(r){return r.text().then(function(t){return [r.ok,t]})})
  .then(function(a){if(a[0]){document.open();document.write(a[1]);document.close()}else{busy.textContent=a[1]}}).catch(function(){busy.textContent='うまく読み込めませんでした。'})}
 document.getElementById('sitego').addEventListener('click',function(){if(u.value.trim())go(u.value.trim())});
 document.getElementById('sitedemo').addEventListener('click',function(){go('')});})();
@@ -172,13 +180,34 @@ def make_handler(cfg):
             self.end_headers()
             self.wfile.write(data)
 
+        def _guard(self, post=False):
+            """自分のページ以外からの要求を断る。POST は、自分のページだけが付ける印（X-Ashiato）も要る。
+            別のサイトからは、この印を付けた送信ができない（事前確認で止まる）。"""
+            port = self.server.server_address[1]
+            if not request_allowed(self.headers.get("Host"), self.headers.get("Origin"), port):
+                self._send(403, "この要求は受け付けません")
+                return False
+            if post and self.headers.get("X-Ashiato") != "1":
+                self._send(403, "この要求は受け付けません")
+                return False
+            return True
+
         def do_GET(self):
+            if not self._guard():
+                return
             self._send(200, upload_page(cfg)) if self.path in ("/", "/index.html") else self._send(404, "ページがありません")
 
         def do_POST(self):
+            if not self._guard(post=True):
+                return
             if self.path not in ("/analyze", "/compare", "/site"):
                 return self._send(404, "ページがありません")
-            size = int(self.headers.get("Content-Length", 0))
+            try:
+                size = int(self.headers.get("Content-Length", 0))
+            except ValueError:
+                return self._send(400, "要求の形が正しくありません")
+            if size < 0:
+                return self._send(400, "要求の形が正しくありません")
             if size > MAX_BYTES:
                 return self._send(413, "ファイルが大きすぎます（50MBまで）")
             from urllib.parse import unquote

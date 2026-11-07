@@ -203,12 +203,22 @@ class AppTest(unittest.TestCase):
         try:
             self.assertIn("足跡", urllib.request.urlopen(base + "/").read().decode())
             req = urllib.request.Request(base + "/analyze", data=self.text.encode(), method="POST",
-                                         headers={"X-Filename": "before.ndjson"})
+                                         headers={"X-Filename": "before.ndjson", "X-Ashiato": "1"})
             self.assertIn("次にやること", urllib.request.urlopen(req).read().decode())
-            bad = urllib.request.Request(base + "/analyze", data=b"not a log", method="POST", headers={"X-Filename": "x.ndjson"})
+            bad = urllib.request.Request(base + "/analyze", data=b"not a log", method="POST",
+                                      headers={"X-Filename": "x.ndjson", "X-Ashiato": "1"})
             with self.assertRaises(urllib.error.HTTPError) as e:
                 urllib.request.urlopen(bad)
             self.assertEqual(e.exception.code, 400)
+            # 自分のページの印が無い。本文を読む前に断るので、小さい本文を送る（大きいと、送信の途中で接続が閉じられる）
+            nohdr = urllib.request.Request(base + "/analyze", data=b"x", method="POST", headers={"X-Filename": "before.ndjson"})
+            with self.assertRaises(urllib.error.HTTPError) as e2:
+                urllib.request.urlopen(nohdr)
+            self.assertEqual(e2.exception.code, 403)
+            evil = urllib.request.Request(base + "/", headers={"Origin": "http://evil.example"})  # 別のサイトから
+            with self.assertRaises(urllib.error.HTTPError) as e3:
+                urllib.request.urlopen(evil)
+            self.assertEqual(e3.exception.code, 403)
         finally:
             server.shutdown()
 
