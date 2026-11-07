@@ -305,7 +305,7 @@ def _demand_panel(brief):
         who = assistant.get(path)
         by = (f'<div class="ev">お客様の質問に答えるために来たAI（{escape("、".join(who))}）: {sum(who.values()):,}回</div>' if who else "")
         return f"<tr><td>{escape(path)}{by}</td><td>{n:,}</td><td>{hint}</td></tr>"
-    left = ("<div class=\"chart\"><h3>AIが探したのに、無かったページ</h3><p class=\"sub\">AIが、あると思って取りに来て、見つからなかったアドレスです。回数が多いほど、求められている目安です。お客様の質問に答えるために来たAIは、実際にお客様が聞いた結果なので、より強い手がかりです。</p>"
+    left = ("<div class=\"chart\"><h3>AIが探したのに、無かったページ</h3><p class=\"sub\">AIが取りに来て、見つからなかったアドレスです。AIが推測したものか、古いリンクの名残かは、記録だけでは区別できません。回数が多いほど、求められている目安です。お客様の質問に答えるために来たAIは、実際にお客様が聞いた結果なので、より強い手がかりです。</p>"
             "<table><tr><th>アドレス</th><th>探した回数</th><th>見立て</th></tr>" + "".join(lost_row(*r) for r in lost) + "</table></div>") if lost else ""
     right = ("<div class=\"chart\"><h3>AIがよく読んでいるページ</h3><p class=\"sub\">いま求められている話題の目安です。ここに近い話題が、次のページの手がかりになります。</p>"
              "<table><tr><th>ページ</th><th>AIが読めた回数</th><th>AIの回答から来た人（回）</th></tr>"
