@@ -5,7 +5,8 @@
 
 出力:
   before.ndjson / before.nginx.txt   28日分。仕込み7つ（docs/design.md）を含む
-  after.ndjson  / after.nginx.txt    14日分。1と2が直った状態
+  after.ndjson  / after.nginx.txt    14日分。1と2が直り、5（/meals）が書き直された状態。仮説にもとづくシナリオ（下の SCENARIO_*）。
+                                      シナリオ: AIの要求が増え、新しいURLの探索は続く。実際の効果を示すものではない
   site/{before,after}/               サイトの現在のページ（robots.txt, sitemap.xml, pages.json）
   expected.json                      仕込みの正解（テストの基準）
 
@@ -24,6 +25,15 @@ JST = timezone(timedelta(hours=9))
 UTC = timezone.utc
 BEFORE_START, BEFORE_DAYS = date(2026, 9, 7), 28
 AFTER_START, AFTER_DAYS = date(2026, 10, 19), 14
+# シナリオ（仮説。実際の効果ではない）。直す前（fixed=False）には、影響しない（倍率1、パスの表も同じ）。
+# 1) 母数の増加: ChatGPT の利用が全体に増えるので、どのドメインへのAIの要求も、全体に増える。
+# 2) 提案の効果: 探されたページが存在するようになり、書き直した /meals も読まれ始めるので、そのページ宛の要求は、全体の増加より大きく増える。
+SCENARIO_MARKET_GROWTH = 1.15
+SCENARIO_PROPOSAL_EXTRA_PER_DAY = 4  # 提案したページ宛の、上乗せ（1日の平均件数）
+PROPOSAL_PAGES = {"/access": 5, "/plans/winter": 2, "/meals": 3}
+# シナリオ（仮説）: 直したあとも、AIは新しいURLを推測して取りに来続ける（読めなかった要求は、減るが、消えない）。
+SCENARIO_NEW_GUESSES_PER_DAY = 3
+NEW_GUESSES = {"/faq": 5, "/gallery": 3, "/plans/summer": 2, "/news": 2}
 
 PAGE_BYTES = {
     "/": 18000, "/rooms": 24000, "/plan/winter": 21000, "/plan/summer": 20000,
@@ -82,6 +92,8 @@ def resolve(path, fixed):
         return (200, 15000) if fixed else (404, 700)
     if path == "/plans/winter":
         return (301, 300) if fixed else (404, 700)
+    if path == "/meals" and fixed:
+        return 200, 16000  # シナリオ: 書き直して、文章が増えた
     if path in PAGE_BYTES:
         return 200, PAGE_BYTES[path]
     if path in ASSET_BYTES:
@@ -146,10 +158,18 @@ def generate(rng, start_day, days, fixed):
         for name, (ua, cat, mean) in BOTS.items():
             start = jst_time(rng, day)
             ev.append(event(rng, start - timedelta(seconds=3), "/robots.txt", ua, pick_cat(rng, cat), name, fixed))
-            for t in burst(rng, start, count(rng, mean), 1, 6):
+            for t in burst(rng, start, count(rng, mean * (SCENARIO_MARKET_GROWTH if fixed else 1)), 1, 6):
                 ev.append(event(rng, t, weighted(rng, AI_PATHS), ua, pick_cat(rng, cat), name, fixed))
+        if fixed:  # シナリオ: 提案したページ宛の要求が、全体の増加に上乗せされる
+            for _ in range(count(rng, SCENARIO_PROPOSAL_EXTRA_PER_DAY)):
+                bot = rng.choice(list(BOTS))
+                ev.append(event(rng, jst_time(rng, day, HUMAN_HOUR), weighted(rng, PROPOSAL_PAGES), BOTS[bot][0], pick_cat(rng, BOTS[bot][1]), bot, fixed))
+        if fixed:  # シナリオ: 新しく探されるURL（サイトにまだ無い）
+            for _ in range(count(rng, SCENARIO_NEW_GUESSES_PER_DAY)):
+                bot = rng.choice(list(BOTS))
+                ev.append(event(rng, jst_time(rng, day, HUMAN_HOUR), weighted(rng, NEW_GUESSES), BOTS[bot][0], pick_cat(rng, BOTS[bot][1]), bot, fixed))
         ua, cat, mean = CHATGPT_USER
-        for _ in range(count(rng, mean)):
+        for _ in range(count(rng, mean * (SCENARIO_MARKET_GROWTH if fixed else 1))):
             ev.append(event(rng, jst_time(rng, day, HUMAN_HOUR), weighted(rng, {"/plan/winter": 4, "/access": 4, "/blog/matsuri-2026": 2, "/onsen": 2}),
                             ua, pick_cat(rng, cat), "ChatGPT-User", fixed))
         # 仕込み6: ClaudeBot は robots.txt で拒否され、robots.txt しか取らない
@@ -204,6 +224,7 @@ def site_snapshot(fixed):
         {"path": "/contact", "title": "お問い合わせ", "h1": "お問い合わせ", "words": 150, "in_sitemap": True},
     ]
     if fixed:
+        pages[5] = {"path": "/meals", "title": "お食事", "h1": "お食事", "words": 420, "in_sitemap": True}  # シナリオ: 書き直した
         pages.append({"path": "/access", "title": "アクセス", "h1": "アクセス", "words": 380, "in_sitemap": True})
     robots = "User-agent: *\nAllow: /\n\nUser-agent: ClaudeBot\nDisallow: /\n\nSitemap: https://%s/sitemap.xml\n" % HOST
     sitemap = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"

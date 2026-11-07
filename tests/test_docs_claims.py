@@ -51,7 +51,7 @@ class DocsClaimsTest(unittest.TestCase):
 
     def test_the_check_can_fail(self):
         # 検査が、本当に落ちることの確認（数字を変えた文書では、見つかる）
-        altered = self.demo.replace("713回", "714回").replace("7.8 → 0", "7.9 → 0")
+        altered = self.demo.replace("713回", "714回").replace("7.8 → 2.1", "7.9 → 2.1")
         self.assertEqual(set(self.missing(altered)), {self.numbers()[0], self.numbers()[4]})
 
     def test_saved_response_covers_the_planted_findings(self):
