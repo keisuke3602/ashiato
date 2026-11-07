@@ -86,8 +86,8 @@ def _card(i, d, times, actions=True):
     btn = ('<div class="acts"><button data-v="approve" aria-pressed="false">承認</button>'
            '<button data-v="edit" aria-pressed="false">修正する</button>'
            '<button data-v="reject" aria-pressed="false">却下</button></div>') if actions else ""
-    return (f'<div class="card" data-id="{i}"><h3>{escape(d["title"])}</h3>'
-            f'<span class="tag {d["priority"]}">{PRIORITY_LABEL[d["priority"]]}</span>'
+    pri = f'<span class="tag {d["priority"]}">{PRIORITY_LABEL[d["priority"]]}</span>' if actions else ""  # 無視してよいものに「余裕があれば」は付けない
+    return (f'<div class="card" data-id="{i}"><h3>{escape(d["title"])}</h3>{pri}'
             f'<span class="tag">{KIND_LABEL[d["kind"]]}</span><p>{escape(d["why"])}</p>{body}{howto}'
             f'{_evidence(d, times)}{btn}</div>')
 
