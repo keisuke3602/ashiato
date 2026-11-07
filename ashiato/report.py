@@ -225,6 +225,7 @@ main.wide{max-width:980px}
 .basis{color:var(--sub);font-size:.9rem;margin:6px 0}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
 .grid2 table{font-size:.92rem}
+.grid2 th:nth-child(2),.grid2 td:nth-child(2){white-space:nowrap}
 a.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;border-radius:8px;padding:8px 16px}
 """
 
