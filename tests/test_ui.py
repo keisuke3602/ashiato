@@ -78,6 +78,12 @@ class UiTest(unittest.TestCase):
         for needle in ("次にやること", "承認した下書き", 'data-id="0"', "手を付けなくてよいこと", "まとめてコピー"):
             self.assertIn(needle, actions)
         self.assertNotIn("日ごとの、AIの動き", actions)  # グラフはダッシュボードにある
+        # 次にやること: 読み込み表示のあとに下書きが出る。JavaScript が無くても、下書きは最初から見える
+        self.assertIn('id="act-load"', actions)
+        self.assertIn("次にやることを用意しています", actions)
+        self.assertIn("act-body", actions)
+        self.assertLess(actions.index('id="act-load"'), actions.index('data-id="0"'))
+        self.assertNotIn('id="act-load"', app.render_page(cfg, "dashboard"))  # 読み込み表示は、次にやることの画面だけ
 
     def test_nav_marks_the_current_page(self):
         cfg = self.cfg()

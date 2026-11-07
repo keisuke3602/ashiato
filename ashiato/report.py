@@ -227,12 +227,22 @@ main.wide{max-width:980px}
 .grid2 table{font-size:.92rem}
 .grid2 th:nth-child(2),.grid2 td:nth-child(2){white-space:nowrap}
 a.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;border-radius:8px;padding:8px 16px}
+#act-load{display:none;flex-direction:column;align-items:center;gap:14px;padding:90px 0;color:var(--sub)}
+.ld #act-load{display:flex}.ld #act-body{display:none}
+.spin{width:38px;height:38px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
 """
 
 NAV = [("dashboard", "ダッシュボード"), ("trace", "調べた順番"), ("actions", "次にやること"), ("changes", "直したあとの変化")]
 BADGE_JS = ("(function(){var n=document.getElementById('nav-n');if(!n)return;try{var c=0,p='ashiato:'+RID+':';"
             "for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k.indexOf(p)===0&&localStorage.getItem(k)==='approve')c++}"
             "n.textContent=c||''}catch(e){}})();")
+
+
+# 下書きは、調べた時点で出来上がっている。この表示は、画面を切り替えたことを分かりやすくするための短い間（1.2秒）で、計算の待ち時間ではない。
+# JavaScript が動かないときは、最初から全部見える。
+LOAD_JS = "document.documentElement.classList.add('ld');setTimeout(function(){document.documentElement.classList.remove('ld')},1200);"
 
 
 def make_view(brief, drafts, trace, cmp=None, agg=None, agg_after=None):
@@ -359,13 +369,16 @@ def page_actions(view):
     acts = _acts(drafts)
     healthy = [d for d in drafts if d["kind"] == "leave_alone"]
     ignored = [d for d in drafts if d["kind"] == "ignore"]
-    body = (f'<h1>次にやること（{len(acts)}件）</h1><p class="sub">承認・修正・却下は、この画面の中の印だけです。サイトには何も書き込みません。</p>'
+    load = ('<div id="act-load" role="status" aria-live="polite"><div class="spin" aria-hidden="true"></div>'
+            '<div>次にやることを用意しています…</div></div>'
+            f'<script>{LOAD_JS}</script><div id="act-body">')
+    body = (load + f'<h1>次にやること（{len(acts)}件）</h1><p class="sub">承認・修正・却下は、この画面の中の印だけです。サイトには何も書き込みません。</p>'
             + (''.join(_card(i, d, times, brief=view["brief"]) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>')
             + '<div class="exp"><h2>承認した下書き（<span id="exp-n">0</span>件）</h2>'
               '<p class="sub">承認したものだけが、ここに集まります。コピーして、ご自分でサイトに反映してください。足跡は、サイトには何も書き込みません。</p>'
               '<textarea id="exp-text" readonly placeholder="「承認」を押すと、ここに下書きが入ります"></textarea><br><button id="exp-copy">まとめてコピー</button></div>'
             + '<h2>手を付けなくてよいこと</h2>' + _healthy(healthy)
-            + ''.join(_card(100 + i, d, times, actions=False) for i, d in enumerate(ignored)))
+            + ''.join(_card(100 + i, d, times, actions=False) for i, d in enumerate(ignored)) + '</div>')
     return _layout(view, "actions", body, scripts=f"<script>{JS}</script>")
 
 
