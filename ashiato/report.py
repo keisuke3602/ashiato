@@ -85,15 +85,34 @@ def _evidence(d, times):
             f'{escape(" ".join(map(str, ids)))}</details></div>')
 
 
-def _card(i, d, times, actions=True):
+BASIS_TAG = {"guessed": "AIが探していた", "reading": "続きの話題の候補"}
+
+
+def _basis(d, brief):
+    """需要にもとづく下書きの、「なぜ」の一行。数字は、Claudeではなく、ブリーフから出す。"""
+    basis, demand = d.get("demand_basis"), (brief or {}).get("demand") or {}
+    if basis == "guessed":
+        g = next((x for x in demand.get("guessed_missing", []) if x["path"] == d["target"]), None)
+        return f'<p class="basis">AIが、このアドレスを{g["count"]:,}回、探しました（{escape("、".join(g["bots"]))}）。</p>' if g else ""
+    if basis == "reading":
+        based = [r for r in demand.get("reading", []) if r["path"] in d.get("based_on", [])]
+        if not based:
+            return ""
+        parts = "、".join(f'{escape(r["path"])}（AIが{r["ai_reads"]:,}回読み、AIの回答から来たお客様が{r["ai_answer_visitors"]:,}人）' for r in based)
+        return f'<p class="basis">AIがよく読んでいるページの、続きの話題の提案です。元のページ: {parts}。AIがこのページを探した記録があるわけではありません。</p>'
+    return ""
+
+
+def _card(i, d, times, actions=True, brief=None):
     body = f"<pre>{escape(d['body'])}</pre>" if d["body"] else ""
     howto = f'<p class="howto"><b>反映のしかた:</b> {escape(d["howto"])}</p>' if d.get("howto") else ""
     btn = ('<div class="acts"><button data-v="approve" aria-pressed="false">承認</button>'
            '<button data-v="edit" aria-pressed="false">修正する</button>'
            '<button data-v="reject" aria-pressed="false">却下</button></div>') if actions else ""
+    tag = f'<span class="tag">{BASIS_TAG[d["demand_basis"]]}</span>' if d.get("demand_basis") in BASIS_TAG else ""
     pri = f'<span class="tag {d["priority"]}">{PRIORITY_LABEL[d["priority"]]}</span>' if actions else ""  # 無視してよいものに「余裕があれば」は付けない
     return (f'<div class="card" data-id="{i}"><h3>{escape(d["title"])}</h3>{pri}'
-            f'<span class="tag">{KIND_LABEL[d["kind"]]}</span><p>{escape(d["why"])}</p>{body}{howto}'
+            f'<span class="tag">{KIND_LABEL[d["kind"]]}</span>{tag}<p>{escape(d["why"])}</p>{_basis(d, brief)}{body}{howto}'
             f'{_evidence(d, times)}{btn}</div>')
 
 
@@ -176,7 +195,7 @@ def render_report(brief, drafts, compare=None, trace=None):
 {_ai_answers(brief.get("ai_answers"))}
 {_trace(trace, times)}
 <h2>次にやること（{len(acts)}件）</h2>
-{''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}
+{''.join(_card(i, d, times, brief=brief) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>'}
 <div class="exp"><h2>承認した下書き（<span id="exp-n">0</span>件）</h2>
 <p class="sub">承認したものだけが、ここに集まります。コピーして、ご自分でサイトに反映してください。足跡は、サイトには何も書き込みません。</p>
 <textarea id="exp-text" readonly placeholder="「承認」を押すと、ここに下書きが入ります"></textarea><br><button id="exp-copy">まとめてコピー</button></div>
@@ -203,6 +222,7 @@ main.wide{max-width:980px}
 .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .cta{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .tiles+.cta{margin-top:12px}
+.basis{color:var(--sub);font-size:.9rem;margin:6px 0}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
 .grid2 table{font-size:.92rem}
 a.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;border-radius:8px;padding:8px 16px}
@@ -331,7 +351,7 @@ def page_actions(view):
     healthy = [d for d in drafts if d["kind"] == "leave_alone"]
     ignored = [d for d in drafts if d["kind"] == "ignore"]
     body = (f'<h1>次にやること（{len(acts)}件）</h1><p class="sub">承認・修正・却下は、この画面の中の印だけです。サイトには何も書き込みません。</p>'
-            + (''.join(_card(i, d, times) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>')
+            + (''.join(_card(i, d, times, brief=view["brief"]) for i, d in enumerate(acts)) or '<p class="sub">今回は、対応が必要なものはありません。</p>')
             + '<div class="exp"><h2>承認した下書き（<span id="exp-n">0</span>件）</h2>'
               '<p class="sub">承認したものだけが、ここに集まります。コピーして、ご自分でサイトに反映してください。足跡は、サイトには何も書き込みません。</p>'
               '<textarea id="exp-text" readonly placeholder="「承認」を押すと、ここに下書きが入ります"></textarea><br><button id="exp-copy">まとめてコピー</button></div>'

@@ -5,6 +5,7 @@ from pathlib import Path
 
 KINDS = ("new_page", "rewrite_page", "redirect", "fix_config", "leave_alone", "ignore")
 PRIORITIES = ("high", "mid", "low")
+BASES = ("guessed", "reading")  # 需要にもとづく下書きの種類（任意）
 REQUIRED = ("kind", "target", "title", "why", "body", "priority", "evidence")
 BANNED_TERMS = ("ユーザーエージェント", "ステータスコード", "User-Agent")  # 画面に出す文には使わない
 
@@ -27,6 +28,10 @@ def validate(draft, known):
             problems.append(f"ブリーフに無い行IDです: {', '.join(map(str, unknown[:3]))}")
     if "howto" in draft and not isinstance(draft["howto"], str):
         problems.append("howto は文字列にしてください")
+    if "demand_basis" in draft and draft["demand_basis"] not in BASES:
+        problems.append(f"demand_basis が不正です: {draft['demand_basis']}")
+    if "based_on" in draft and not (isinstance(draft["based_on"], list) and all(isinstance(b, str) for b in draft["based_on"])):
+        problems.append("based_on は、パスの配列にしてください")
     for field in ("title", "why", "howto"):
         if field not in draft:
             continue
