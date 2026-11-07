@@ -2,49 +2,43 @@
   {
     "kind": "new_page",
     "target": "/access",
-    "title": "「アクセス（行き方）」のページを新しく作る",
-    "why": "AIが /access というページを読みに来ましたが、ページが無いため読めませんでした。名前が確かな検索用のAIだけでも63回読めておらず、人の訪問も41回ありました。行き方の情報はお客様が知りたいはずの情報ですが、今のサイトのページ一覧にはありません。",
-    "body": "アクセス・交通のご案内\n\n■ 住所\n〒［郵便番号］ ［住所］\n雪待荘\n\n■ お車でお越しの場合\n［最寄りのインターチェンジ］から約［◯］分。\n駐車場：［台数］台（無料／有料）\n冬季は雪道になります。スタッドレスタイヤやチェーンをご用意ください。［必要に応じて書き換え］\n\n■ 電車・バスでお越しの場合\n［最寄り駅］から［バス／タクシー］で約［◯］分。\n送迎：［有無・条件・予約方法］\n\n■ チェックイン／チェックアウト\nチェックイン：［時刻］\nチェックアウト：［時刻］\n\n■ お問い合わせ\nご不明な点は、お問い合わせページ（/contact）からご連絡ください。\n\n※［ ］の部分は、実際の内容に書き換えてください。",
-    "howto": "お使いのサーバーや管理画面で、住所が /access になる新しいページを作り、［ ］を実際の内容に直してから本文を貼ってください。",
+    "title": "「アクセス（交通のご案内）」のページを作る",
+    "why": "AIが交通案内のページがあるはずと考えて /access を取りに来ましたが、ページが無いため163回読めませんでした。この数には本物と確認できないAI名乗りが含まれている可能性がありますが、本物と確認できた検索用AIだけでも63回来ています。人の訪問も41回あり、お客様も探している情報です。",
+    "body": "# アクセス（交通のご案内）\n\n雪待荘へのアクセスをご案内します。\n\n## 住所\n【住所】\n\n## お車でお越しの方\n【最寄りのインターチェンジなどからの道順と所要時間】\n駐車場：【台数・料金の有無】\n冬の道路について：【雪道の注意点、冬用タイヤが必要かどうか】\n\n## 電車・バスでお越しの方\n【最寄り駅・バス停と、そこからの所要時間】\n送迎：【送迎の有無と条件】\n\n## 道順についてのお問い合わせ\nご不明な点は、お問い合わせページ（/contact）からご連絡ください。",
+    "howto": "お使いの管理画面で、アドレスが /access になる新しいページを作り、【】の部分を埋めてから本文を貼ってください。",
     "priority": "high",
     "evidence": [
       "before.ndjson:93",
       "before.ndjson:94",
       "before.ndjson:97",
       "before.ndjson:99",
-      "before.ndjson:115",
-      "before.ndjson:204",
-      "before.ndjson:232",
-      "before.ndjson:327",
-      "site:pages"
-    ]
+      "before.ndjson:115"
+    ],
+    "demand_basis": "guessed"
   },
   {
     "kind": "redirect",
     "target": "/plans/winter",
-    "title": "/plans/winter を、冬の宿泊プランのページへ転送する",
-    "why": "AIが、実際の住所（/plan/winter）と1文字違う /plans/winter を読みに来て、ページが見つかりませんでした。名前が確かな検索用のAIだけでも22回です。正しい冬の宿泊プランのページは、AIの答えから来たお客様が22回あり、よく読まれています。",
+    "title": "間違ったアドレス /plans/winter から冬の宿泊プランへ転送する",
+    "why": "AIが冬の宿泊プランを /plans/winter というアドレスで探しましたが、ページが無いため56回見つかりませんでした。本当のページは /plan/winter で、AIの回答から22人のお客様が来ている大事なページです。転送を足せば、間違ったアドレスからも正しいページに届きます。",
     "body": "Redirect 301 /plans/winter /plan/winter",
-    "howto": "お使いのサーバーの .htaccess に、この行を貼ってください。.htaccess が使えないサービスの場合は、管理画面の転送（リダイレクト）の設定で、同じ内容を登録してください。",
+    "howto": "お使いのサーバーで転送を設定してください。.htaccess が使える場合は、この1行をそのファイルに貼ります。",
     "priority": "high",
     "evidence": [
       "before.ndjson:103",
       "before.ndjson:106",
       "before.ndjson:110",
       "before.ndjson:148",
-      "before.ndjson:256",
-      "before.ndjson:267",
-      "before.ndjson:432",
-      "before.ndjson:529"
+      "before.ndjson:256"
     ]
   },
   {
     "kind": "fix_config",
     "target": "/robots.txt",
-    "title": "ClaudeBot（AnthropicのAI）を断っている設定が、わざとか確かめる",
-    "why": "サイトの案内ファイル（robots.txt）で、ClaudeBot だけがサイト全体を読めないようにしてあります。ClaudeBot は40回来ましたが、案内ファイルだけを見て帰り、ページは1つも読んでいません。わざと断っているのでなければ、次の2行を消すとページを読めるようになります。",
+    "title": "ClaudeというAIだけ読み取りを断っている設定を確かめる",
+    "why": "サイトの案内ファイル（robots.txt）で、ClaudeBot だけが全ページの読み取りを断られています。期間中に ClaudeBot は40回来ましたが、案内ファイルだけを見て帰り、ページは1つも読んでいません。わざと断っているのでなければ、下の2行を消すと読めるようになります。",
     "body": "User-agent: ClaudeBot\nDisallow: /",
-    "howto": "お使いのサーバーや管理画面で、サイトのトップにある robots.txt を開き、この2行を消してください。わざと断っている場合は、そのままで構いません。",
+    "howto": "サイトのトップにある robots.txt を開き、この2行を消してください。わざと断っている場合は、そのままで構いません。",
     "priority": "mid",
     "evidence": [
       "before.ndjson:8",
@@ -59,9 +53,9 @@
     "kind": "rewrite_page",
     "target": "/meals",
     "title": "「お食事」のページの中身を増やす",
-    "why": "お食事のページは本文が45語しかなく、この期間にAIは一度も読みに来ていません。一方で、人の訪問は70回あり、お客様の関心はあるページです。",
-    "body": "お食事\n\n■ ご夕食\n［献立の内容・地元の食材・品数など］\nお食事処：［お部屋食／食事処など］\n時間：［時刻］\n\n■ ご朝食\n［内容］\n時間：［時刻］\n\n■ 季節のお料理\n冬：［冬の料理］\n夏：［夏の料理］\n詳しくは、冬の宿泊プラン（/plan/winter）・夏の宿泊プラン（/plan/summer）もご覧ください。\n\n■ アレルギー・苦手な食材\n［対応の可否・連絡方法］\nご予約時、またはお問い合わせページ（/contact）からお知らせください。\n\n※［ ］の部分は、実際の内容に書き換えてください。",
-    "howto": "お使いのサーバーや管理画面で「お食事」のページを開き、［ ］を実際の内容に直してから、本文を差し替えてください。",
+    "why": "お食事のページは本文が45語しかなく、期間中にAIが読みに来た記録がありません。一方で、人は70回訪れています。中身を足すと、お客様にもAIにも伝わりやすくなります。",
+    "body": "# お食事\n\n雪待荘のお食事をご案内します。\n\n## ご夕食\n提供時間：【時間】\n場所：【お部屋・食事処など】\n【献立の特徴、使っている食材】\n\n## ご朝食\n提供時間：【時間】\n【内容】\n\n## アレルギー・苦手な食材\n【事前のご相談ができるか、連絡方法】\n\n## 宿泊プランとの関係\n【プランごとにお食事が違う場合はここに記載】\n冬の宿泊プラン（/plan/winter）、夏の宿泊プラン（/plan/summer）もあわせてご覧ください。",
+    "howto": "お使いの管理画面で「お食事」のページを開き、【】の部分を埋めてから本文を差し替えてください。",
     "priority": "low",
     "evidence": [
       "before.ndjson:36",
@@ -71,141 +65,66 @@
     ]
   },
   {
-    "kind": "leave_alone",
-    "target": "/plan/winter",
-    "title": "冬の宿泊プランのページは、このままでよい",
-    "why": "AIは67回、問題なく読めています。AIの答えから来たお客様も22回あり、よく役立っているページです。",
-    "body": "",
-    "howto": "",
-    "priority": "low",
-    "evidence": [
-      "before.ndjson:24",
-      "before.ndjson:105",
-      "before.ndjson:113",
-      "before.ndjson:145",
-      "before.ndjson:149"
-    ]
-  },
-  {
-    "kind": "leave_alone",
-    "target": "/blog/matsuri-2026",
-    "title": "雪まつりの記事は、このままでよい",
-    "why": "AIは156回、問題なく読めています。AIの答えから来たお客様も11回ありました。",
-    "body": "",
-    "howto": "",
+    "kind": "new_page",
+    "target": "/matsuri-stay",
+    "title": "「雪まつりの時期に泊まる」案内のページを作る",
+    "why": "「町の雪まつり2026」のページは、AIに156回読まれ、AIの回答から11人のお客様が来ています。これは続きの話題の提案で、AIがこのページを探した記録があるわけではありません。",
+    "body": "# 雪まつりの時期に雪待荘に泊まる\n\n町の雪まつり2026（/blog/matsuri-2026）にあわせたご宿泊の案内です。\n\n## 開催期間とご予約\n雪まつりの開催期間：【開催日】\nこの時期のご予約：【受付開始の時期、混み具合の目安】\n\n## 宿から会場まで\n【会場までの行き方と所要時間】\n\n## この時期のおすすめ\n冬の宿泊プラン（/plan/winter）もご覧ください。【雪まつりの時期に合うプランがあれば記載】\n\n## 服装・持ち物\n【防寒の目安】",
+    "howto": "お使いの管理画面で、アドレスが /matsuri-stay になる新しいページを作り、【】の部分を埋めてから本文を貼ってください。",
     "priority": "low",
     "evidence": [
       "before.ndjson:86",
       "before.ndjson:91",
-      "before.ndjson:92",
-      "before.ndjson:95",
-      "before.ndjson:98"
+      "before.ndjson:158",
+      "before.ndjson:585"
+    ],
+    "demand_basis": "reading",
+    "based_on": [
+      "/blog/matsuri-2026"
     ]
   },
   {
-    "kind": "leave_alone",
-    "target": "/onsen",
-    "title": "温泉のページは、このままでよい",
-    "why": "AIは55回、問題なく読めています。AIの答えから来たお客様も11回ありました。",
-    "body": "",
-    "howto": "",
+    "kind": "new_page",
+    "target": "/onsen/guide",
+    "title": "「温泉のご利用案内」のページを作る",
+    "why": "温泉のページは、AIに55回読まれ、AIの回答から11人のお客様が来ています。これは続きの話題の提案で、AIがこのページを探した記録があるわけではありません。",
+    "body": "# 温泉のご利用案内\n\n雪待荘のかけ流しの温泉（/onsen）のご利用方法をご案内します。\n\n## 入浴できる時間\n【時間】\n\n## 貸切風呂\n【有無、予約の方法】\n\n## 日帰り入浴\n【できるかどうか、料金】\n\n## タオル・アメニティ\n【用意しているもの】\n\n## ご注意\n【入浴時のお願い】",
+    "howto": "お使いの管理画面で、アドレスが /onsen/guide になる新しいページを作り、【】の部分を埋めてから本文を貼ってください。",
     "priority": "low",
     "evidence": [
       "before.ndjson:102",
       "before.ndjson:114",
-      "before.ndjson:258",
-      "before.ndjson:300",
-      "before.ndjson:338"
+      "before.ndjson:116",
+      "before.ndjson:321"
+    ],
+    "demand_basis": "reading",
+    "based_on": [
+      "/onsen"
     ]
   },
   {
     "kind": "leave_alone",
-    "target": "/",
-    "title": "トップページは、このままでよい",
-    "why": "AIは68回、問題なく読めています。今は直す必要はありません。",
+    "target": "",
+    "title": "よく読まれているページは、今のままで大丈夫です",
+    "why": "トップ（68回）、町の雪まつり2026（156回）、お問い合わせ（39回）、温泉（55回）、夏の宿泊プラン（49回）、冬の宿泊プラン（67回）、お部屋（60回）は、AIが問題なく読めています。手を加える必要はありません。",
     "body": "",
     "howto": "",
     "priority": "low",
     "evidence": [
       "before.ndjson:112",
-      "before.ndjson:137",
-      "before.ndjson:152",
-      "before.ndjson:153",
-      "before.ndjson:260"
-    ]
-  },
-  {
-    "kind": "leave_alone",
-    "target": "/rooms",
-    "title": "お部屋のページは、このままでよい",
-    "why": "AIは60回、問題なく読めています。今は直す必要はありません。",
-    "body": "",
-    "howto": "",
-    "priority": "low",
-    "evidence": [
-      "before.ndjson:141",
-      "before.ndjson:301",
-      "before.ndjson:490",
-      "before.ndjson:491",
-      "before.ndjson:550"
-    ]
-  },
-  {
-    "kind": "leave_alone",
-    "target": "/plan/summer",
-    "title": "夏の宿泊プランのページは、このままでよい",
-    "why": "AIは49回、問題なく読めています。今は直す必要はありません。",
-    "body": "",
-    "howto": "",
-    "priority": "low",
-    "evidence": [
-      "before.ndjson:96",
-      "before.ndjson:140",
-      "before.ndjson:468",
-      "before.ndjson:862",
-      "before.ndjson:916"
-    ]
-  },
-  {
-    "kind": "leave_alone",
-    "target": "/contact",
-    "title": "お問い合わせのページは、このままでよい",
-    "why": "AIは39回、問題なく読めています。今は直す必要はありません。",
-    "body": "",
-    "howto": "",
-    "priority": "low",
-    "evidence": [
+      "before.ndjson:86",
       "before.ndjson:85",
-      "before.ndjson:109",
-      "before.ndjson:138",
-      "before.ndjson:154",
-      "before.ndjson:305"
+      "before.ndjson:102",
+      "before.ndjson:96",
+      "before.ndjson:24",
+      "before.ndjson:141"
     ]
   },
   {
     "kind": "ignore",
     "target": "",
-    "title": "AIを名乗っているが、本物か確かめられないアクセスは気にしなくてよい",
-    "why": "AIの名前を名乗っていても、本物か確かめられないアクセスがありました（PerplexityBot を名乗るもの108回、GPTBot を名乗るもの160回、ChatGPT-User を名乗るもの39回）。これらはAIの需要として数えていません。対応は不要です。",
-    "body": "",
-    "howto": "",
-    "priority": "low",
-    "evidence": [
-      "before.ndjson:83",
-      "before.ndjson:84",
-      "before.ndjson:87",
-      "before.ndjson:39",
-      "before.ndjson:40",
-      "before.ndjson:7",
-      "before.ndjson:12",
-      "before.ndjson:81"
-    ]
-  },
-  {
-    "kind": "ignore",
-    "target": "",
-    "title": "サイトに無い管理画面などを探る、機械的なアクセスは無視してよい",
-    "why": "/wp-login.php や /.env など、このサイトに無い管理用の場所を探るアクセスが209回ありました。どのサイトにも来る機械的なものなので、AIへの対応としては何もしなくて構いません。",
+    "title": "サイトの弱点を探る機械的なアクセスは無視して大丈夫です",
+    "why": "/wp-login.php や /.env など、このサイトに無い管理用のアドレスを狙ったアクセスが209回ありました。どのサイトにも来る機械的な探りで、ページが無いので害はありません。",
     "body": "",
     "howto": "",
     "priority": "low",
@@ -218,6 +137,23 @@
       "before.ndjson:34",
       "before.ndjson:16",
       "before.ndjson:32"
+    ]
+  },
+  {
+    "kind": "ignore",
+    "target": "",
+    "title": "AIを名乗っているが本物と確認できないアクセスは数えません",
+    "why": "ChatGPT-User を名乗るもの39回、GPTBot を名乗るもの160回、PerplexityBot を名乗るもの108回は、本物のAIかどうか確認できませんでした。これらはAIの需要として扱わず、対応も不要です。",
+    "body": "",
+    "howto": "",
+    "priority": "low",
+    "evidence": [
+      "before.ndjson:7",
+      "before.ndjson:12",
+      "before.ndjson:39",
+      "before.ndjson:40",
+      "before.ndjson:83",
+      "before.ndjson:84"
     ]
   }
 ]
