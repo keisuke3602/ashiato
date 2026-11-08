@@ -37,7 +37,7 @@ main{max-width:640px;margin:0 auto;padding:56px 16px}h1{font-size:1.8rem;margin:
 details{margin-top:28px;color:var(--sub);font-size:.92rem}
 </style></head><body><main>
 <h1>足跡</h1><p class="lead">AIに見つけてもらうための道しるべ</p>
-<label id="drop"><input id="file" type="file" hidden><b>サイトのアクセス記録のファイルを、ここに落としてください</b><span class="lead">またはクリックして選びます。ファイルはこのパソコンの中で調べるだけで、外には送りません。</span></label>
+<label id="drop"><input id="file" type="file" hidden><b>サイトのアクセス記録のファイルを、ここに落としてください</b><span class="lead">またはクリックして選びます。ファイルそのものは、このパソコンの外には送りません。</span></label>
 <div id="busy">AIが何回、どのページを読みに来たか数えています…</div>
 <details><summary>記録の取り方がわからないとき</summary><p>お使いのサーバー会社、またはCloudflareなどの配信サービスに、「アクセスログをください」と頼むのが近道です。
 対応している形式は、Cloudflareのログ（.ndjson）と、nginx・Apacheのアクセスログ（.txt / .log）です。</p></details>
@@ -59,7 +59,7 @@ background:var(--card);padding:28px 16px;text-align:center;cursor:pointer;color:
 #after.over{border-color:var(--accent)}#after b{display:block;margin-bottom:4px}#after span{display:block;color:var(--sub);font-size:.92rem}
 </style>
 <label id="after"><input id="afterfile" type="file" hidden><b>直したあとのアクセス記録を入れると、前後を比べられます</b>
-<span>ページを直してしばらくたってから、新しい記録をここに落としてください。このパソコンの中で調べるだけで、外には送りません。</span></label>
+<span>ページを直してしばらくたってから、新しい記録をここに落としてください。ファイルそのものは、このパソコンの外には送りません。</span></label>
 <script>
 (function(){var z=document.getElementById('after'),i=document.getElementById('afterfile');
 function go(f){if(!f)return;z.querySelector('b').textContent='前後を比べています…';

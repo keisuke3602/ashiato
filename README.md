@@ -55,15 +55,16 @@ pip install anthropic                       # API で下書きを取るときだ
 python3 scripts/run_advisor.py data/synthetic/ryokan/before.ndjson data/synthetic/ryokan/site/before 雪待荘 out/ryokan_response.json --run
 ```
 
-入れたログから、その場で Claude に下書きを作らせるには、`serve.py` に `--response` の代わりに `--live` を付けます
-（環境変数 ANTHROPIC_API_KEY が要ります。ログを入れるたびに API を呼ぶので、料金がかかります）。
+`serve.py` は、2通りで起動できます。
+- `--response`(上の例): 保存済みの返答を使います。API は呼ばず、キーも要りません。
+- `--live`: 入れたログから、その場で Claude に下書きを作らせます。ログを入れるたびに API を呼ぶので、環境変数 ANTHROPIC_API_KEY が要り、料金がかかります。
 
-上の run_advisor.py は、`--run` を付けると API を呼びます（料金がかかります）。付けなければ呼びません。
-`serve.py` には、`examples/` の保存済みの返答を `--response` に渡しても動かせます（API キーは要りません）。
+`run_advisor.py` は、`--run` を付けたときだけ API を呼びます(料金がかかります)。付けなければ呼びません。
 
 ブラウザで `http://127.0.0.1:8765/` を開き、`data/synthetic/ryokan/before.ndjson` を落とします。
 レポートの下に「直したあとのアクセス記録」の欄が出るので、`data/synthetic/ryokan/after.ndjson` を落とすと、前後の比較が出ます。
-入れたログはこのパソコンの中で解析するだけで、ディスクにも外にも書き出しません。
+入れたログは、このパソコンの中で解析するだけです。画面(`serve.py`)は、ログをディスクに書き出さず、ファイルそのものを外に送ることもありません。
+`--live` のときだけ、数えた結果(ブリーフ)を Claude に送ります。
 テストは `python3 -m unittest discover -s tests` です。
 
 ## しくみ
